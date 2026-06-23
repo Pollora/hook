@@ -11,8 +11,8 @@ composer require pollora/hook
 ## Quick Start
 
 ```php
-use Pollora\Hook\Adapter\Out\WordPress\Action;
-use Pollora\Hook\Adapter\Out\WordPress\Filter;
+use Pollora\Hook\Action;
+use Pollora\Hook\Filter;
 
 $action = new Action;
 $filter = new Filter;
@@ -36,6 +36,8 @@ $filtered = $filter->apply('my_filter', $value);
 // Remove hook
 $action->remove('init', $callback);
 ```
+
+> **Pollora framework users:** When the framework is available, prefer the Laravel facades `Pollora\Support\Facades\Action` and `Pollora\Support\Facades\Filter` for full DI container support. A notice is emitted if you use the standalone classes within the framework.
 
 ## Class-based Callbacks
 
