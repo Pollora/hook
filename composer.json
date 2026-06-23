@@ -1,0 +1,52 @@
+{
+    "name": "pollora/hook",
+    "description": "A modern PHP package for WordPress hook (action/filter) management with callback resolution and reflection caching",
+    "type": "library",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Amphibee",
+            "email": "contact@amphibee.fr"
+        }
+    ],
+    "require": {
+        "php": "^8.2"
+    },
+    "require-dev": {
+        "laravel/pint": "^v1.22.1",
+        "mockery/mockery": "^1.6",
+        "pestphp/pest": "^v3.8.2",
+        "phpstan/phpstan": "^2.1.16"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pollora\\Hook\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Pollora\\Hook\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": [
+            "@test:unit",
+            "@phpstan",
+            "@lint:check"
+        ],
+        "test:coverage": "pest --coverage",
+        "test:unit": "pest --testsuite=Unit",
+        "phpstan": "phpstan analyse src tests --level=5",
+        "phpstan:ci": "phpstan analyse src tests --level=5 --no-progress",
+        "lint": "pint",
+        "lint:check": "pint --test"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

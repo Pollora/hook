@@ -1,0 +1,18 @@
+parameters:
+    level: 5
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - vendor/*
+    ignoreErrors:
+        # WordPress function mocks in tests
+        - '#Function [a-zA-Z0-9\\_]+ not found#'
+        - '#Call to undefined function [a-zA-Z0-9\\_]+#'
+        # Mockery related errors
+        - '#Parameter \#\d+ \$[a-zA-Z0-9_]+ of class [^]]+ constructor expects [^,]+, Mockery\\(MockInterface|LegacyMockInterface)(\|[^,]+)* given.#'
+        - '#Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage::[a-zA-Z0-9_]+\(\).#'
+        # Pest.php dynamic properties
+        - '#Undefined variable: \$this#'
+        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$[a-zA-Z0-9_]+.#'
+    reportUnmatchedIgnoredErrors: false
