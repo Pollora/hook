@@ -2,7 +2,7 @@
     "name": "pollora/hook",
     "description": "A modern PHP package for WordPress hook (action/filter) management with callback resolution and reflection caching",
     "type": "library",
-    "license": "GPL-2.0-or-later",
+    "license": "MIT",
     "authors": [
         {
             "name": "Amphibee",
