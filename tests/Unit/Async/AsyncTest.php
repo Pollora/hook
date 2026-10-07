@@ -129,3 +129,41 @@ describe('Default driver', function (): void {
         expect(Async::defaultDriver())->toBe('wp-cron');
     });
 });
+
+describe('POLLORA_ASYNC_DRIVER constant', function (): void {
+    /**
+     * Read the default driver in a separate PHP process, so the constant does not leak into other tests.
+     */
+    function defaultDriverInSeparateProcess(string $setup): string
+    {
+        $script = tempnam(sys_get_temp_dir(), 'pollora-hook').'.php';
+        file_put_contents($script, sprintf(
+            '<?php require %s; require %s; %s echo Pollora\\Hook\\Async\\Async::defaultDriver();',
+            var_export(dirname(__DIR__, 3).'/vendor/autoload.php', true),
+            var_export(dirname(__DIR__, 2).'/Stubs/wordpress.php', true),
+            $setup,
+        ));
+
+        try {
+            return (string) shell_exec(escapeshellarg(PHP_BINARY).' '.escapeshellarg($script).' 2>&1');
+        } finally {
+            unlink($script);
+        }
+    }
+
+    it('sets the default driver', function (): void {
+        expect(defaultDriverInSeparateProcess("define('POLLORA_ASYNC_DRIVER', 'sync');"))->toBe('sync');
+    });
+
+    it('comes before the filter', function (): void {
+        expect(defaultDriverInSeparateProcess("define('POLLORA_ASYNC_DRIVER', 'sync'); add_filter('pollora/hook/async_driver', fn () => 'action-scheduler');"))->toBe('sync');
+    });
+
+    it('comes after the driver set from code', function (): void {
+        expect(defaultDriverInSeparateProcess("define('POLLORA_ASYNC_DRIVER', 'sync'); Pollora\\Hook\\Async\\Async::setDefaultDriver('wp-cron');"))->toBe('wp-cron');
+    });
+
+    it('is ignored when empty', function (): void {
+        expect(defaultDriverInSeparateProcess("define('POLLORA_ASYNC_DRIVER', '');"))->toBe('wp-cron');
+    });
+});

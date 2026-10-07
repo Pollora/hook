@@ -12,8 +12,8 @@ declare(strict_types=1);
 if (! function_exists('add_action')) {
     function add_action(string $hook, mixed $callback, int $priority = 10, int $acceptedArgs = 1): void
     {
-        // The internal hook of async actions is kept apart, so tests counting registrations are not affected
-        $store = $hook === 'pollora/async/run' ? 'wp_async_listeners' : 'wp_actions';
+        // The internal hooks of async actions are kept apart, so tests counting registrations are not affected
+        $store = str_starts_with($hook, 'pollora/async/') ? 'wp_async_listeners' : 'wp_actions';
         $GLOBALS[$store][] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority, 'args' => $acceptedArgs];
     }
 }
@@ -280,4 +280,61 @@ if (! function_exists('wp_schedule_single_event')) {
 
         return true;
     }
+}
+
+if (! function_exists('wp_schedule_event')) {
+    function wp_schedule_event(int $timestamp, string $recurrence, string $hook, array $args = []): bool
+    {
+        $GLOBALS['wp_cron_events'][] = ['timestamp' => $timestamp, 'hook' => $hook, 'args' => $args, 'recurrence' => $recurrence];
+
+        return true;
+    }
+}
+
+if (! function_exists('wp_next_scheduled')) {
+    function wp_next_scheduled(string $hook, array $args = []): int|false
+    {
+        foreach ($GLOBALS['wp_cron_events'] ?? [] as $event) {
+            if ($event['hook'] === $hook && $event['args'] === $args) {
+                return $event['timestamp'];
+            }
+        }
+
+        return false;
+    }
+}
+
+/**
+ * A $wpdb answering the options query of the WP-Cron recovery from $GLOBALS['wp_options'].
+ */
+function wp_stub_wpdb(): object
+{
+    return new class
+    {
+        public string $options = 'wp_options';
+
+        public function esc_like(string $text): string
+        {
+            return addcslashes($text, '_%\\');
+        }
+
+        public function prepare(string $query, mixed ...$args): array
+        {
+            return ['query' => $query, 'args' => $args];
+        }
+
+        public function get_results(array $prepared, string $output): array
+        {
+            $prefix = stripslashes(rtrim($prepared['args'][0], '%'));
+            $rows = [];
+
+            foreach ($GLOBALS['wp_options'] ?? [] as $name => $option) {
+                if (str_starts_with($name, $prefix)) {
+                    $rows[] = ['option_name' => $name, 'option_value' => $option['value']];
+                }
+            }
+
+            return array_slice($rows, 0, $prepared['args'][1]);
+        }
+    };
 }
