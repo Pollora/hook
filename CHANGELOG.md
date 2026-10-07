@@ -4,6 +4,10 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Building blocks of asynchronous actions, not wired to `add()` yet: `AsyncPayload` (versioned JSON with a unique ID), `CallableDescriptor` (handler carried by name), `ArgumentNormalizer` (WordPress objects by reference, enums, dates, `JsonSerializable`; any other object rejected), `ObjectReference` contract, `AsyncContext`.
+
 ### Changed
 
 - PHP 8.3 is now the minimum version.
