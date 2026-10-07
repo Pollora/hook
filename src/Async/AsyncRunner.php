@@ -108,8 +108,8 @@ final class AsyncRunner
             wp_set_current_user($userId);
         }
 
-        $switchedLocale = function_exists('switch_to_locale') && determine_locale() !== $locale
-            && switch_to_locale($locale);
+        $switchedLocale = function_exists('switch_to_locale') && function_exists('determine_locale')
+            && determine_locale() !== $locale && switch_to_locale($locale);
 
         return static function () use ($switchedBlog, $previousUser, $switchedLocale): void {
             if ($switchedLocale) {

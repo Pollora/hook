@@ -4,6 +4,12 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-07
+
+### Fixed
+
+- The runner checks that `determine_locale()` exists before restoring the locale, not only `switch_to_locale()`, so an environment that defines one without the other (a test suite, an early bootstrap) no longer fails with an undefined function.
+
 ## [1.4.0] - 2026-10-07
 
 ### Added
@@ -64,7 +70,8 @@ All notable changes to `pollora/hook` are documented in this file.
 - A `[ClassName::class, 'method']` callback naming an instance method is now instantiated at registration, through the callback resolver when one is set, as a class name is. WordPress used to receive it as a static call and threw a `TypeError` when the hook fired. Static methods and classes not loaded yet are unchanged.
 - `remove()` and `exists()` accept that same `[ClassName::class, 'method']` form and find the instance it was registered as. `exists()` now accepts a non-callable array or string as its callback.
 
-[Unreleased]: https://github.com/Pollora/hook/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/Pollora/hook/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/Pollora/hook/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/Pollora/hook/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Pollora/hook/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Pollora/hook/compare/v1.1.1...v1.2.0
