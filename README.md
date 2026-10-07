@@ -21,7 +21,7 @@ A small, dependency-free PHP layer over WordPress actions and filters. It regist
 composer require pollora/hook
 ```
 
-Requires PHP 8.2+ and WordPress (the adapters call `add_action()`, `add_filter()` and friends).
+Requires PHP 8.3+ and WordPress (the adapters call `add_action()`, `add_filter()` and friends).
 
 ## Quick start
 
@@ -57,7 +57,12 @@ if (Action::exists('init')) {
 ```php
 Action::add('wp_loaded', MyInitializer::class);
 // Resolves to [new MyInitializer, 'wpLoaded']
+
+Action::add('save_post', [CrmSync::class, 'push']);
+// An instance method named by class resolves to [new CrmSync, 'push']
 ```
+
+A static method stays as you pass it, and a class that is not loaded yet is left for WordPress to resolve when the hook fires.
 
 To build those classes through a container, use the adapter directly and give it a `CallbackResolverInterface`:
 

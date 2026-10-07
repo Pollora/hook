@@ -10,27 +10,6 @@ beforeEach(function (): void {
     $GLOBALS['wp_actions_done'] = [];
 });
 
-if (! function_exists('add_action')) {
-    function add_action(string $hook, mixed $callback, int $priority = 10, int $acceptedArgs = 1): void
-    {
-        $GLOBALS['wp_actions'][] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority, 'args' => $acceptedArgs];
-    }
-}
-
-if (! function_exists('remove_action')) {
-    function remove_action(string $hook, mixed $callback, int $priority = 10): void
-    {
-        $GLOBALS['wp_actions_removed'][] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority];
-    }
-}
-
-if (! function_exists('do_action')) {
-    function do_action(string $hook, mixed ...$args): void
-    {
-        $GLOBALS['wp_actions_done'][] = ['hook' => $hook, 'args' => $args];
-    }
-}
-
 describe('WordPress Action Adapter', function (): void {
     it('registers action via WordPress add_action', function (): void {
         $action = new Action;
@@ -59,5 +38,28 @@ describe('WordPress Action Adapter', function (): void {
         expect($GLOBALS['wp_actions_done'])->toHaveCount(1)
             ->and($GLOBALS['wp_actions_done'][0]['hook'])->toBe('my_custom_action')
             ->and($GLOBALS['wp_actions_done'][0]['args'])->toBe(['arg1', 'arg2']);
+    });
+});
+
+describe('Instance methods named by class', function (): void {
+    it('hands WordPress a callable instance method', function (): void {
+        $className = 'ActionInstanceHandler_'.uniqid();
+        eval(sprintf('class %s { public function handle(int $id) {} }', $className));
+
+        (new Action)->add('save_post', [$className, 'handle']);
+
+        expect(is_callable($GLOBALS['wp_actions'][0]['callback']))->toBeTrue()
+            ->and($GLOBALS['wp_actions'][0]['args'])->toBe(1);
+    });
+
+    it('removes from WordPress the instance it registered', function (): void {
+        $className = 'ActionRemovedHandler_'.uniqid();
+        eval(sprintf('class %s { public function handle(int $id) {} }', $className));
+        $action = new Action;
+        $action->add('save_post', [$className, 'handle']);
+
+        $action->remove('save_post', [$className, 'handle']);
+
+        expect($GLOBALS['wp_actions_removed'][0]['callback'])->toBe($GLOBALS['wp_actions'][0]['callback']);
     });
 });

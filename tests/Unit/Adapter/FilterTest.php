@@ -9,27 +9,6 @@ beforeEach(function (): void {
     $GLOBALS['wp_filters_removed'] = [];
 });
 
-if (! function_exists('add_filter')) {
-    function add_filter(string $hook, mixed $callback, int $priority = 10, int $acceptedArgs = 1): void
-    {
-        $GLOBALS['wp_filters'][] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority, 'args' => $acceptedArgs];
-    }
-}
-
-if (! function_exists('remove_filter')) {
-    function remove_filter(string $hook, mixed $callback, int $priority = 10): void
-    {
-        $GLOBALS['wp_filters_removed'][] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority];
-    }
-}
-
-if (! function_exists('apply_filters')) {
-    function apply_filters(string $hook, mixed $value, mixed ...$args): mixed
-    {
-        return $value;
-    }
-}
-
 describe('WordPress Filter Adapter', function (): void {
     it('registers filter via WordPress add_filter', function (): void {
         $filter = new Filter;

@@ -198,3 +198,60 @@ describe('P2 — Remove hooks not registered through Pollora', function (): void
             ->and($hook->callbacks('my_hook'))->toBeNull();
     });
 });
+
+describe('Instance methods named by class', function (): void {
+    beforeEach(function (): void {
+        $this->className = 'InstanceMethodHandler_'.uniqid();
+        eval(sprintf('class %s { public function handle(int $id, string $status) {} public static function report($a) {} }', $this->className));
+    });
+
+    it('instantiates the class of a [ClassName, method] pair naming an instance method', function (): void {
+        $this->hook->add('save_post', [$this->className, 'handle']);
+
+        $callbacks = $this->hook->callbacks('save_post');
+        expect($callbacks[0]['callback'][0])->toBeInstanceOf($this->className)
+            ->and($callbacks[0]['callback'][1])->toBe('handle')
+            ->and($callbacks[0]['args'])->toBe(2);
+    });
+
+    it('instantiates the class through the callback resolver', function (): void {
+        $instance = new $this->className;
+        $resolver = Mockery::mock(CallbackResolverInterface::class);
+        $resolver->shouldReceive('resolve')->once()->with($this->className)->andReturn($instance);
+        $this->hook->setCallbackResolver($resolver);
+
+        $this->hook->add('save_post', [$this->className, 'handle']);
+
+        expect($this->hook->callbacks('save_post')[0]['callback'][0])->toBe($instance);
+    });
+
+    it('keeps a [ClassName, method] pair naming a static method as it is', function (): void {
+        $this->hook->add('save_post', [$this->className, 'report']);
+
+        expect($this->hook->callbacks('save_post')[0]['callback'])->toBe([$this->className, 'report']);
+    });
+
+    it('reports a class that cannot be instantiated at registration', function (): void {
+        $className = 'NeedsDependency_'.uniqid();
+        eval(sprintf('class %s { public function __construct(Countable $dependency) {} public function handle() {} }', $className));
+
+        expect(fn () => $this->hook->add('save_post', [$className, 'handle']))
+            ->toThrow(RuntimeException::class, sprintf("Failed to resolve '%s'", $className));
+    });
+
+    it('finds the registered instance from the [ClassName, method] pair', function (): void {
+        $this->hook->add('save_post', [$this->className, 'handle'], 20);
+
+        expect($this->hook->exists('save_post', [$this->className, 'handle']))->toBeTrue()
+            ->and($this->hook->exists('save_post', [$this->className, 'handle'], 20))->toBeTrue()
+            ->and($this->hook->exists('save_post', [$this->className, 'handle'], 10))->toBeFalse();
+    });
+
+    it('removes the registered instance from the [ClassName, method] pair', function (): void {
+        $this->hook->add('save_post', [$this->className, 'handle']);
+
+        $this->hook->remove('save_post', [$this->className, 'handle']);
+
+        expect($this->hook->callbacks('save_post'))->toBeNull();
+    });
+});
