@@ -4,6 +4,11 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `capture()` on an asynchronous registration: a callback run at trigger time, in the original request, with the hook arguments; the array it returns is read back at execution through `AsyncContext::get()`. Captured values travel like arguments. A handler class's public `capture()` method is used when `capture()` is not called.
+- `when()`: queue only when the callback, given the hook arguments, returns `true`. It runs before the capture, and an exception it throws goes through, as it would synchronously.
+
 ## [1.2.0] - 2026-10-07
 
 ### Added

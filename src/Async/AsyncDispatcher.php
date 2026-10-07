@@ -31,6 +31,12 @@ final readonly class AsyncDispatcher
             return;
         }
 
+        // Outside the fallback below: a condition that throws fails as it would synchronously
+        $condition = $handler->options->condition();
+        if ($condition instanceof \Closure && $condition(...$arguments) !== true) {
+            return;
+        }
+
         try {
             $payload = new AsyncPayload(
                 id: AsyncPayload::newId(),
@@ -39,6 +45,7 @@ final readonly class AsyncDispatcher
                 priority: $handler->priority,
                 arguments: $this->normalizer->normalize($arguments),
                 origin: self::origin(),
+                captured: $this->normalizer->normalize($this->capture($handler, $arguments), 'captured value'),
                 keepMissing: $handler->options->keepsMissing(),
             );
 
@@ -74,6 +81,29 @@ final readonly class AsyncDispatcher
             'locale' => function_exists('determine_locale') ? (string) determine_locale() : 'en_US',
             'dispatchedAt' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(DATE_RFC3339_EXTENDED),
         ];
+    }
+
+    /**
+     * Run the capture callback of the registration, or the handler class's capture() method.
+     *
+     * @param  array<int, mixed>  $arguments
+     * @return array<string, mixed>
+     */
+    private function capture(QueuedHandler $handler, array $arguments): array
+    {
+        $capture = $handler->options->captureCallback() ?? $handler->defaultCapture;
+
+        if (! is_callable($capture)) {
+            return [];
+        }
+
+        $captured = $capture(...$arguments);
+
+        if (! is_array($captured)) {
+            throw new \UnexpectedValueException(sprintf('The capture of %s must return an array, %s returned.', $handler->hook, get_debug_type($captured)));
+        }
+
+        return $captured;
     }
 
     /**

@@ -21,6 +21,12 @@ final class PendingAsync
 
     private bool $keepMissing = false;
 
+    /** @var (\Closure(mixed...): array<string, mixed>)|null */
+    private ?\Closure $capture = null;
+
+    /** @var (\Closure(mixed...): bool)|null */
+    private ?\Closure $condition = null;
+
     /** @var array<string, QueuedHandler> */
     private array $handlers = [];
 
@@ -96,6 +102,38 @@ final class PendingAsync
     }
 
     /**
+     * Record values at trigger time, read back at execution through AsyncContext::get().
+     *
+     * The callback runs in the original request with the hook arguments and
+     * returns an array. Values must be able to travel like arguments: capture
+     * an ID rather than personal data or a secret, they wait in the database.
+     *
+     *     ->capture(fn (int $postId, WP_Post $post) => ['status' => $post->post_status])
+     *
+     * @param  callable(mixed...): array<string, mixed>  $capture
+     */
+    public function capture(callable $capture): self
+    {
+        $this->capture = $capture(...);
+
+        return $this;
+    }
+
+    /**
+     * Queue only when the callback, given the hook arguments, returns true.
+     *
+     *     ->when(fn (int $postId) => ! wp_is_post_revision($postId))
+     *
+     * @param  callable(mixed...): bool  $condition
+     */
+    public function when(callable $condition): self
+    {
+        $this->condition = $condition(...);
+
+        return $this;
+    }
+
+    /**
      * @internal
      */
     public function track(QueuedHandler $handler): void
@@ -141,6 +179,26 @@ final class PendingAsync
     public function keepsMissing(): bool
     {
         return $this->keepMissing;
+    }
+
+    /**
+     * @internal
+     *
+     * @return (\Closure(mixed...): array<string, mixed>)|null
+     */
+    public function captureCallback(): ?\Closure
+    {
+        return $this->capture;
+    }
+
+    /**
+     * @internal
+     *
+     * @return (\Closure(mixed...): bool)|null
+     */
+    public function condition(): ?\Closure
+    {
+        return $this->condition;
     }
 
     private function rejectUnknownHook(string $hook): void
