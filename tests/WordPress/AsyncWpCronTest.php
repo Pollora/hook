@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Pollora\Hook\Async\Async;
+use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Drivers\WpCronDriver;
 
 /*
@@ -223,4 +224,17 @@ it('refuses to run a closure whose signature does not match', function (): void 
     $runs = fixtureRuns();
     expect(array_column($runs, 'key'))->toBe(['failed'])
         ->and($runs[0]['message'])->toContain('signature of a queued closure is invalid');
+});
+
+it('records handlers with Async::fake() instead of queuing them', function (): void {
+    Async::fake();
+
+    try {
+        do_action('pollora_fixture_event', $this->postId, get_post($this->postId));
+
+        Async::assertDispatched(PolloraHookFixture::class.'@event', fn (AsyncPayload $payload): bool => $payload->arguments[0] === $this->postId);
+        expect(scheduledExecutions())->toBe([]);
+    } finally {
+        Async::flush();
+    }
 });
