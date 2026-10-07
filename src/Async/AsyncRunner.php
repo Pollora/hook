@@ -27,7 +27,10 @@ final class AsyncRunner
         private readonly ArgumentNormalizer $normalizer,
     ) {}
 
-    public function run(AsyncPayload $payload): void
+    /**
+     * @param  bool  $throwOnFinalFailure  Announce the last failure, then throw it instead of reporting it
+     */
+    public function run(AsyncPayload $payload, bool $throwOnFinalFailure = false): void
     {
         // Identical triggers queue again from the moment the first attempt starts
         if ($payload->uniqueKey !== null && $payload->attempt === 1) {
@@ -41,7 +44,7 @@ final class AsyncRunner
         } catch (MissingReferencedObject) {
             return;
         } catch (\Throwable $throwable) {
-            $this->fail($payload, $throwable);
+            $this->fail($payload, $throwable, $throwOnFinalFailure);
 
             return;
         }
@@ -53,7 +56,7 @@ final class AsyncRunner
         try {
             $this->call($callable, $arguments, $payload->context($captured));
         } catch (\Throwable $throwable) {
-            $this->retryOrFail($payload, $throwable);
+            $this->retryOrFail($payload, $throwable, $throwOnFinalFailure);
         } finally {
             $leaveContext();
 
@@ -126,7 +129,7 @@ final class AsyncRunner
     /**
      * Queue the handler again when it has attempts left, report the failure otherwise.
      */
-    private function retryOrFail(AsyncPayload $payload, \Throwable $throwable): void
+    private function retryOrFail(AsyncPayload $payload, \Throwable $throwable, bool $throwOnFinalFailure): void
     {
         if ($payload->attempt < $payload->tries) {
             $delay = $payload->retryDelay($payload->attempt);
@@ -144,15 +147,21 @@ final class AsyncRunner
             }
         }
 
-        $this->fail($payload, $throwable);
+        $this->fail($payload, $throwable, $throwOnFinalFailure);
     }
 
-    private function fail(AsyncPayload $payload, \Throwable $throwable): void
+    private function fail(AsyncPayload $payload, \Throwable $throwable, bool $throw = false): void
     {
-        Async::report($throwable, ['hook' => $payload->hook, 'handler' => $payload->handler, 'payload' => $payload->id]);
+        if (! $throw) {
+            Async::report($throwable, ['hook' => $payload->hook, 'handler' => $payload->handler, 'payload' => $payload->id]);
+        }
 
         if (function_exists('do_action')) {
             do_action('pollora/async/failed', $payload, $throwable);
+        }
+
+        if ($throw) {
+            throw $throwable;
         }
     }
 }

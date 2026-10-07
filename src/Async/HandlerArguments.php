@@ -7,15 +7,16 @@ namespace Pollora\Hook\Async;
 /**
  * Maps hook arguments onto a handler's signature.
  *
- * A parameter typed AsyncContext receives the context, wherever it sits; the
- * other parameters receive the hook arguments, in order.
+ * A parameter typed AsyncContext receives the context, and an injectable
+ * parameter (see Async::injectParametersUsing()) its resolved value, wherever
+ * they sit; the other parameters receive the hook arguments, in order.
  *
  * @internal
  */
 final class HandlerArguments
 {
     /**
-     * How many hook arguments a handler takes, its AsyncContext parameters left out.
+     * How many hook arguments a handler takes, its AsyncContext and injected parameters left out.
      *
      * @param  callable|string|array  $callback  The registered callback
      * @param  int  $registeredArgs  The argument count it was registered with
@@ -28,9 +29,12 @@ final class HandlerArguments
             return $registeredArgs;
         }
 
-        $contextParameters = count(array_filter($reflection->getParameters(), self::isContextParameter(...)));
+        $hookParameters = count(array_filter(
+            $reflection->getParameters(),
+            fn (\ReflectionParameter $parameter): bool => ! self::isContextParameter($parameter) && ! Async::isInjectable($parameter),
+        ));
 
-        return max(0, $registeredArgs - $contextParameters);
+        return max(0, min($registeredArgs, $hookParameters));
     }
 
     /**
@@ -57,12 +61,25 @@ final class HandlerArguments
                 continue;
             }
 
+            if (Async::isInjectable($parameter)) {
+                $arguments[] = Async::inject($parameter);
+
+                continue;
+            }
+
             if ($parameter->isVariadic()) {
                 return [...$arguments, ...$hookArguments];
             }
 
             if ($hookArguments === []) {
-                break;
+                // Use the default value, so a later context or injected parameter still gets its own
+                if (! $parameter->isDefaultValueAvailable()) {
+                    break;
+                }
+
+                $arguments[] = $parameter->getDefaultValue();
+
+                continue;
             }
 
             $arguments[] = array_shift($hookArguments);

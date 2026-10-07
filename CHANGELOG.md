@@ -4,6 +4,18 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-07
+
+### Added
+
+- `Async::setDefaults()`: the attempts, backoff and `asUser` every asynchronous registration starts from. The framework sets them from `config/hooks.php`.
+- `Async::injectParametersUsing()`: handler parameters that are not hook arguments are injected at execution. By default, a parameter is injected when its type is a class or interface that does not travel as a hook argument (WordPress objects, enums, dates, `JsonSerializable` and `AsyncContext` do). These parameters are not requested from WordPress, so they can sit anywhere in the signature. The framework resolves them from its container.
+- `Async::receive(..., throwOnFinalFailure: true)`: the last failure is announced through `pollora/async/failed`, then thrown instead of reported, for a driver whose queue records failures itself (a Laravel job then lands in `failed_jobs`). Retries still happen while attempts are left.
+
+### Changed
+
+- A handler parameter with no hook argument left takes its default value, so a later `AsyncContext` or injected parameter still gets its own.
+
 ## [1.3.0] - 2026-10-07
 
 ### Changed
@@ -52,6 +64,7 @@ All notable changes to `pollora/hook` are documented in this file.
 - A `[ClassName::class, 'method']` callback naming an instance method is now instantiated at registration, through the callback resolver when one is set, as a class name is. WordPress used to receive it as a static call and threw a `TypeError` when the hook fired. Static methods and classes not loaded yet are unchanged.
 - `remove()` and `exists()` accept that same `[ClassName::class, 'method']` form and find the instance it was registered as. `exists()` now accepts a non-callable array or string as its callback.
 
-[Unreleased]: https://github.com/Pollora/hook/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/Pollora/hook/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Pollora/hook/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Pollora/hook/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Pollora/hook/compare/v1.1.1...v1.2.0

@@ -21,12 +21,12 @@ final class PendingAsync
 
     private bool $keepMissing = false;
 
-    private int $tries = 1;
+    private int $tries;
 
     /** @var list<int> */
-    private array $backoff = [10, 60, 300];
+    private array $backoff;
 
-    private bool $asUser = false;
+    private bool $asUser;
 
     private ?string $queue = null;
 
@@ -49,7 +49,46 @@ final class PendingAsync
      */
     public function __construct(
         private readonly \Closure $restore,
-    ) {}
+    ) {
+        $defaults = Async::defaults();
+        $this->tries = $defaults['tries'];
+        $this->backoff = $defaults['backoff'];
+        $this->asUser = $defaults['asUser'];
+    }
+
+    /**
+     * @internal
+     *
+     * @throws \InvalidArgumentException When $tries is lower than 1
+     */
+    public static function validTries(int $tries): int
+    {
+        if ($tries < 1) {
+            throw new \InvalidArgumentException(sprintf('tries() expects at least 1 attempt, %d given.', $tries));
+        }
+
+        return $tries;
+    }
+
+    /**
+     * @internal
+     *
+     * @param  int|array<int|string, mixed>  $seconds
+     * @return list<int>
+     *
+     * @throws \InvalidArgumentException When a delay is negative or the list is empty
+     */
+    public static function validBackoff(int|array $seconds): array
+    {
+        $seconds = array_values((array) $seconds);
+
+        if ($seconds === [] || array_filter($seconds, fn (mixed $delay): bool => ! is_int($delay) || $delay < 0) !== []) {
+            throw new \InvalidArgumentException('backoff() expects one or more delays of 0 seconds or more.');
+        }
+
+        /** @var list<int> $seconds */
+        return $seconds;
+    }
 
     /**
      * Keep some hooks of the registration synchronous.
@@ -120,17 +159,13 @@ final class PendingAsync
      */
     public function tries(int $tries): self
     {
-        if ($tries < 1) {
-            throw new \InvalidArgumentException(sprintf('tries() expects at least 1 attempt, %d given.', $tries));
-        }
-
-        $this->tries = $tries;
+        $this->tries = self::validTries($tries);
 
         return $this;
     }
 
     /**
-     * Seconds to wait before each retry; the last value repeats. Default: 10, 60, then 300.
+     * Seconds to wait before each retry; the last value repeats. Default: 10, 60, then 300, or Async::setDefaults().
      *
      * @param  int|array<int|string, mixed>  $seconds  Validated: integers of 0 or more
      *
@@ -138,13 +173,7 @@ final class PendingAsync
      */
     public function backoff(int|array $seconds): self
     {
-        $seconds = array_values((array) $seconds);
-
-        if ($seconds === [] || array_filter($seconds, fn (mixed $delay): bool => ! is_int($delay) || $delay < 0) !== []) {
-            throw new \InvalidArgumentException('backoff() expects one or more delays of 0 seconds or more.');
-        }
-
-        $this->backoff = $seconds;
+        $this->backoff = self::validBackoff($seconds);
 
         return $this;
     }
