@@ -88,6 +88,53 @@ $action->add('wp_loaded', MyInitializer::class);
 // MyInitializer is built by the container, then wpLoaded() is hooked
 ```
 
+## Asynchronous actions
+
+Add `async()` after `add()` and the handler no longer runs inside the request that fires the hook: it is queued, then run later by WP-Cron.
+
+```php
+use Pollora\Hook\Action;
+
+Action::add('save_post_event', [CrmSync::class, 'push'])->async();
+```
+
+An asynchronous handler changes guarantees. Four rules to keep in mind:
+
+- **At least once, not exactly once.** A double trigger can run the handler twice: it must be safe to replay.
+- **No guaranteed order.** Two asynchronous actions on the same hook may run in any order.
+- **A variable delay.** With WP-Cron and no system cron, the handler waits for the next visit to the site.
+- **A class or a named function, not a closure.** The handler travels by name and runs in its current version; closures are rejected.
+
+The handler is written as a synchronous one. It receives the hook arguments and, if it declares a parameter of that type, an `AsyncContext`:
+
+```php
+use Pollora\Hook\Async\AsyncContext;
+
+final class CrmSync
+{
+    public function push(int $postId, WP_Post $post, AsyncContext $context): void
+    {
+        $context->userId;       // user who fired the hook
+        $context->dispatchedAt; // trigger date
+    }
+}
+```
+
+**Arguments.** Scalars and arrays keep their value. `WP_Post`, `WP_Term`, `WP_User` and `WP_Comment` travel as a reference and are reloaded, in their state at execution time; if one was deleted in the meantime, the handler is dropped (`keepMissing()` runs it with `null` instead). Enums and dates are rebuilt, a `JsonSerializable` object becomes its array. Any other object is refused.
+
+**Options**, chained after `async()`:
+
+| Method | Effect |
+|---|---|
+| `delay(60)` | Minimum delay, in seconds or as a `DateInterval` |
+| `via('sync')` | Driver for this registration |
+| `keepMissing()` | Run with `null` in place of a deleted object |
+| `except('save_post_page')` | Keep some hooks of the same `add()` synchronous; also `async(except: …)` |
+
+**Drivers.** `wp-cron` is the default: the payload is stored in an option that is not autoloaded and the event carries only its identifier. A daily task schedules again the payloads whose event was lost. `sync` runs the handler right away, which suits development and end-to-end tests. Choose the default with the `POLLORA_ASYNC_DRIVER` constant in `wp-config.php`, or the `pollora/hook/async_driver` filter. More drivers register through `Async::extend()`.
+
+**Failures.** At execution, the original site and locale are restored, and a handler that fires its own hook does not queue itself again. A failing handler is reported and announced through the `pollora/async/failed` action. When an action cannot be queued, `WP_DEBUG` throws; otherwise the incident goes to the PHP error log (or `Async::reportUsing()`) and the handler runs in place, so the work always happens.
+
 ## Documentation
 
 Hooks in a Pollora project: [Actions & filters](https://pollora.dev/hooks/actions-filters/).
@@ -95,7 +142,8 @@ Hooks in a Pollora project: [Actions & filters](https://pollora.dev/hooks/action
 ## Testing
 
 ```bash
-composer test
+composer test            # unit suite, PHPStan, Pint
+composer test:wordpress  # against a real WordPress, see tests/WordPress/load.php
 ```
 
 ## Contributing

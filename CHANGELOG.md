@@ -4,6 +4,8 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-07
+
 ### Added
 
 - Asynchronous actions: `add(...)->async()` replaces each callback of the last `add()` call by one that queues it, at the same priority. The handler runs later, with the hook arguments and, if it declares a parameter of that type, an `AsyncContext` (user, site, locale, hook, trigger date, attempt).
@@ -27,3 +29,6 @@ All notable changes to `pollora/hook` are documented in this file.
 
 - A `[ClassName::class, 'method']` callback naming an instance method is now instantiated at registration, through the callback resolver when one is set, as a class name is. WordPress used to receive it as a static call and threw a `TypeError` when the hook fired. Static methods and classes not loaded yet are unchanged.
 - `remove()` and `exists()` accept that same `[ClassName::class, 'method']` form and find the instance it was registered as. `exists()` now accepts a non-callable array or string as its callback.
+
+[Unreleased]: https://github.com/Pollora/hook/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Pollora/hook/compare/v1.1.1...v1.2.0
