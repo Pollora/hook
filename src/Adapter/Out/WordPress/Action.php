@@ -78,7 +78,7 @@ class Action extends AbstractHook implements ActionContract
         $this->lastRegistrations = [];
 
         $descriptor = new CallableDescriptor;
-        $descriptors = array_map(fn (array $registration): string => $descriptor->describe($registration['callback']), $registrations);
+        $descriptors = array_map(fn (array $registration): ?string => $descriptor->describeOrDefer($registration['callback']), $registrations);
 
         $pending = new PendingAsync($this->makeSynchronous(...));
 

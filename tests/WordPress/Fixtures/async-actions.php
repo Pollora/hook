@@ -84,6 +84,13 @@ Action::add('pollora_fixture_large', [PolloraHookFixture::class, 'large'])->asyn
     ->capture(fn (int $id): array => ['report' => str_repeat('x', 9000)]);
 Action::add('pollora_fixture_flaky', [PolloraHookFixture::class, 'flaky'])->async()->tries(2)->backoff(0);
 
+// A closure, signed with a key derived from the WordPress salts
+$closureLabel = 'closure';
+Action::add('pollora_fixture_closure', static function (int $id, AsyncContext $context) use ($closureLabel): void {
+    PolloraHookFixture::record($closureLabel, ['id' => $id, 'cron' => defined('DOING_CRON') && DOING_CRON]);
+})->async();
+unset($closureLabel);
+
 // WP-Cron unless a test chooses another driver; the POLLORA_ASYNC_DRIVER constant still comes first
 add_filter('pollora/hook/async_driver', fn (): string => (string) get_option(PolloraHookFixture::DRIVER, 'wp-cron'));
 

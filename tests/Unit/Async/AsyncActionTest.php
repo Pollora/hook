@@ -88,13 +88,47 @@ describe('Registration', function (): void {
         expect(fn () => $this->action->async())->toThrow(LogicException::class);
     });
 
-    it('rejects a closure at registration and leaves the registration untouched', function (): void {
-        $closure = function (int $postId): void {};
+    it('signs a closure when its hook first fires, the WordPress salts not being loaded at registration', function (): void {
+        $this->action->add('save_post', static function (int $postId): void {})->async()->via('recording');
 
-        expect(fn () => $this->action->add('save_post', $closure)->async())->toThrow(UnresolvableHandler::class, 'closure');
+        expect($GLOBALS['wp_actions'][0]['callback'])->toBeInstanceOf(QueuedHandler::class)
+            ->and(fn () => wp_stub_fire('save_post', 1))->toThrow(UnresolvableHandler::class, 'without a signing key');
+
+        Async::useClosureKey('test-signing-key');
+        wp_stub_fire('save_post', 1);
+
+        expect($this->driver->queued[0]['payload']->handler)->toStartWith('closure:');
+    });
+
+    it('rejects at registration a closure that cannot be serialized, leaving the registration untouched', function (): void {
+        $rows = (static function (): Generator {
+            yield 1;
+        })();
+        $closure = static function (int $postId) use ($rows): void {
+            $rows->current();
+        };
+
+        expect(fn () => $this->action->add('save_post', $closure)->async())->toThrow(UnresolvableHandler::class, 'declare it static');
 
         expect($GLOBALS['wp_actions'])->toHaveCount(1)
             ->and($GLOBALS['wp_actions'][0]['callback'])->toBe($closure);
+    });
+
+    it('queues a closure and runs it, with its bound variables, through the sync driver', function (): void {
+        Async::useClosureKey('test-signing-key');
+        $received = [];
+        $suffix = '!';
+        $this->action->add('save_post', function (int $postId, AsyncContext $context) use (&$received, $suffix): void {
+            $received[] = $postId.$suffix.' '.$context->hook;
+        })->async()->via('recording');
+
+        wp_stub_fire('save_post', 42);
+
+        expect($this->driver->queued[0]['payload']->handler)->toStartWith('closure:');
+        $this->driver->runAll();
+
+        // The closure runs as a copy rebuilt from the payload: a reference bound with use (&) is not shared
+        expect($received)->toBe([]);
     });
 
     it('is chained from the static facade', function (): void {
