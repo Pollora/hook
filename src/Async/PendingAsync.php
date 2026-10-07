@@ -21,6 +21,15 @@ final class PendingAsync
 
     private bool $keepMissing = false;
 
+    private int $tries = 1;
+
+    /** @var list<int> */
+    private array $backoff = [10, 60, 300];
+
+    private bool $asUser = false;
+
+    private ?string $queue = null;
+
     /** @var (\Closure(mixed...): array<string, mixed>)|null */
     private ?\Closure $capture = null;
 
@@ -97,6 +106,66 @@ final class PendingAsync
     public function keepMissing(bool $keepMissing = true): self
     {
         $this->keepMissing = $keepMissing;
+
+        return $this;
+    }
+
+    /**
+     * Number of attempts when the handler throws: it is queued again after each
+     * failure but the last, which is reported and fired as 'pollora/async/failed'.
+     *
+     * @throws \InvalidArgumentException When $tries is lower than 1
+     */
+    public function tries(int $tries): self
+    {
+        if ($tries < 1) {
+            throw new \InvalidArgumentException(sprintf('tries() expects at least 1 attempt, %d given.', $tries));
+        }
+
+        $this->tries = $tries;
+
+        return $this;
+    }
+
+    /**
+     * Seconds to wait before each retry; the last value repeats. Default: 10, 60, then 300.
+     *
+     * @param  int|array<int|string, mixed>  $seconds  Validated: integers of 0 or more
+     *
+     * @throws \InvalidArgumentException When a delay is negative or the list is empty
+     */
+    public function backoff(int|array $seconds): self
+    {
+        $seconds = array_values((array) $seconds);
+
+        if ($seconds === [] || array_filter($seconds, fn (mixed $delay): bool => ! is_int($delay) || $delay < 0) !== []) {
+            throw new \InvalidArgumentException('backoff() expects one or more delays of 0 seconds or more.');
+        }
+
+        $this->backoff = $seconds;
+
+        return $this;
+    }
+
+    /**
+     * Run the handler as the user who fired the hook, then remove that user.
+     *
+     * Without it the handler runs without a current user, so a capability
+     * check fails there, which is the safe default.
+     */
+    public function asUser(bool $asUser = true): self
+    {
+        $this->asUser = $asUser;
+
+        return $this;
+    }
+
+    /**
+     * Queue name: the group with Action Scheduler, the queue with a Laravel queue. WP-Cron ignores it.
+     */
+    public function onQueue(string $queue): self
+    {
+        $this->queue = $queue;
 
         return $this;
     }
@@ -179,6 +248,40 @@ final class PendingAsync
     public function keepsMissing(): bool
     {
         return $this->keepMissing;
+    }
+
+    /**
+     * @internal
+     */
+    public function attempts(): int
+    {
+        return $this->tries;
+    }
+
+    /**
+     * @internal
+     *
+     * @return list<int>
+     */
+    public function backoffDelays(): array
+    {
+        return $this->backoff;
+    }
+
+    /**
+     * @internal
+     */
+    public function runsAsUser(): bool
+    {
+        return $this->asUser;
+    }
+
+    /**
+     * @internal
+     */
+    public function queue(): ?string
+    {
+        return $this->queue;
     }
 
     /**

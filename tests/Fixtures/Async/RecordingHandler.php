@@ -11,8 +11,11 @@ use Pollora\Hook\Async\AsyncContext;
  */
 final class RecordingHandler
 {
-    /** @var list<array{method: string, arguments: list<mixed>, blog: int|null, locale: string|null}> */
+    /** @var list<array{method: string, arguments: list<mixed>, blog: int|null, locale: string|null, user: int|null}> */
     public static array $calls = [];
+
+    /** Failures flaky() still has to throw */
+    public static int $failuresLeft = 0;
 
     public function __construct(public string $source = 'direct') {}
 
@@ -56,6 +59,17 @@ final class RecordingHandler
         throw new \RuntimeException('CRM unreachable');
     }
 
+    public function flaky(int $postId, AsyncContext $context): void
+    {
+        $this->record(__FUNCTION__, [$postId, $context->attempt]);
+
+        if (self::$failuresLeft > 0) {
+            self::$failuresLeft--;
+
+            throw new \RuntimeException('Temporary failure');
+        }
+    }
+
     public function refires(int $postId): void
     {
         $this->record(__FUNCTION__, func_get_args());
@@ -77,6 +91,7 @@ final class RecordingHandler
             'arguments' => $arguments,
             'blog' => $GLOBALS['wp_state']['blog'] ?? null,
             'locale' => $GLOBALS['wp_state']['locale'] ?? null,
+            'user' => $GLOBALS['wp_state']['user'] ?? null,
         ];
     }
 }

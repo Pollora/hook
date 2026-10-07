@@ -29,6 +29,10 @@ final readonly class AsyncPayload
      * @param  int  $attempt  Attempt number, from 1
      * @param  int  $tries  Number of attempts allowed
      * @param  bool  $keepMissing  Run with null in place of a referenced object that no longer exists
+     * @param  string|null  $driver  Driver that queued the payload, used again to retry it
+     * @param  string|null  $queue  Queue name: the group with Action Scheduler, ignored by WP-Cron
+     * @param  bool  $asUser  Run as the user who fired the hook
+     * @param  list<int>  $backoff  Seconds before each retry; the last value repeats
      */
     public function __construct(
         public string $id,
@@ -41,6 +45,10 @@ final readonly class AsyncPayload
         public int $attempt = 1,
         public int $tries = 1,
         public bool $keepMissing = false,
+        public ?string $driver = null,
+        public ?string $queue = null,
+        public bool $asUser = false,
+        public array $backoff = [],
     ) {}
 
     /**
@@ -94,6 +102,11 @@ final readonly class AsyncPayload
             attempt: self::field($data, 'attempt', 'is_int'),
             tries: self::field($data, 'tries', 'is_int'),
             keepMissing: self::field($data, 'keepMissing', 'is_bool'),
+            // Fields added after 1.2.0: optional, so payloads queued by 1.2.0 still run
+            driver: self::optionalField($data, 'driver', 'is_string', null),
+            queue: self::optionalField($data, 'queue', 'is_string', null),
+            asUser: self::optionalField($data, 'asUser', 'is_bool', false),
+            backoff: self::backoffField($data),
         );
     }
 
@@ -116,6 +129,10 @@ final readonly class AsyncPayload
             'attempt' => $this->attempt,
             'tries' => $this->tries,
             'keepMissing' => $this->keepMissing,
+            'driver' => $this->driver,
+            'queue' => $this->queue,
+            'asUser' => $this->asUser,
+            'backoff' => $this->backoff,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
     }
 
@@ -125,6 +142,18 @@ final readonly class AsyncPayload
     public function withAttempt(int $attempt): self
     {
         return new self(...[...get_object_vars($this), 'attempt' => $attempt]);
+    }
+
+    /**
+     * Seconds to wait before retrying after the given failed attempt.
+     */
+    public function retryDelay(int $failedAttempt): int
+    {
+        if ($this->backoff === []) {
+            return 0;
+        }
+
+        return $this->backoff[min(max($failedAttempt, 1), count($this->backoff)) - 1];
     }
 
     /**
@@ -143,6 +172,34 @@ final readonly class AsyncPayload
             attempt: $this->attempt,
             captured: $captured,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  callable(mixed): bool  $check
+     */
+    private static function optionalField(array $data, string $field, callable $check, mixed $default): mixed
+    {
+        if (! array_key_exists($field, $data) || $data[$field] === null) {
+            return $default;
+        }
+
+        return self::field($data, $field, $check);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return list<int>
+     */
+    private static function backoffField(array $data): array
+    {
+        $backoff = self::optionalField($data, 'backoff', 'is_array', []);
+
+        if (! array_is_list($backoff) || array_filter($backoff, fn (mixed $delay): bool => ! is_int($delay) || $delay < 0) !== []) {
+            throw InvalidPayload::invalidField('backoff');
+        }
+
+        return $backoff;
     }
 
     /**

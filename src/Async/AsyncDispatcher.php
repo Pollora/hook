@@ -38,6 +38,8 @@ final readonly class AsyncDispatcher
         }
 
         try {
+            [$driverName, $driver] = $this->driverFor($handler);
+
             $payload = new AsyncPayload(
                 id: AsyncPayload::newId(),
                 hook: $handler->hook,
@@ -46,10 +48,15 @@ final readonly class AsyncDispatcher
                 arguments: $this->normalizer->normalize($arguments),
                 origin: self::origin(),
                 captured: $this->normalizer->normalize($this->capture($handler, $arguments), 'captured value'),
+                tries: $handler->options->attempts(),
                 keepMissing: $handler->options->keepsMissing(),
+                driver: $driverName,
+                queue: $handler->options->queue(),
+                asUser: $handler->options->runsAsUser(),
+                backoff: $handler->options->backoffDelays(),
             );
 
-            $this->driverFor($handler)->dispatch($payload, $handler->options->delayInSeconds());
+            $driver->dispatch($payload, $handler->options->delayInSeconds());
         } catch (\Throwable $throwable) {
             if (Async::isDebug()) {
                 throw $throwable;
@@ -107,28 +114,30 @@ final readonly class AsyncDispatcher
     }
 
     /**
-     * The driver requested by the registration, or the default one.
+     * The driver requested by the registration, or the default one, with its name.
+     *
+     * @return array{0: string, 1: AsyncDriver}
      *
      * @throws DriverUnavailable
      */
-    private function driverFor(QueuedHandler $handler): AsyncDriver
+    private function driverFor(QueuedHandler $handler): array
     {
         $requested = $handler->options->driver();
 
-        if ($requested === null) {
-            return Async::driver();
-        }
+        if ($requested !== null) {
+            try {
+                return [$requested, Async::driver($requested)];
+            } catch (DriverUnavailable $driverUnavailable) {
+                if (Async::isDebug()) {
+                    throw $driverUnavailable;
+                }
 
-        try {
-            return Async::driver($requested);
-        } catch (DriverUnavailable $driverUnavailable) {
-            if (Async::isDebug()) {
-                throw $driverUnavailable;
+                Async::report($driverUnavailable, ['hook' => $handler->hook, 'handler' => $handler->descriptor]);
             }
-
-            Async::report($driverUnavailable, ['hook' => $handler->hook, 'handler' => $handler->descriptor]);
-
-            return Async::driver();
         }
+
+        $default = Async::defaultDriver();
+
+        return [$default, Async::driver($default)];
     }
 }
