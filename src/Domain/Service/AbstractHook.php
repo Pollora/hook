@@ -112,7 +112,8 @@ abstract class AbstractHook implements HookInterface
             // Always notify subclasses to perform platform-specific unregistration
             // (e.g., WordPress remove_action/remove_filter), even for hooks not
             // registered through this class (e.g., hooks added by WooCommerce core).
-            $this->removeHookEvent($hook, $callback, $priority);
+            // A [ClassName, 'method'] request targets the instance registered for it.
+            $this->removeHookEvent($hook, $this->registeredCallbackFor($hook, $callback, $priority), $priority);
 
             // Also clean up our internal tracking if we have it
             if (isset($this->hooks[$hook])) {
@@ -136,11 +137,11 @@ abstract class AbstractHook implements HookInterface
      * Check if a hook exists.
      *
      * @param  string  $hook  The hook name to check
-     * @param  callable|null  $callback  Optional. Specific callback to check
+     * @param  callable|string|array|null  $callback  Optional. Specific callback to check
      * @param  int|null  $priority  Optional. Specific priority to check
      * @return bool True if the hook exists, false otherwise
      */
-    public function exists(string $hook, ?callable $callback = null, ?int $priority = null): bool
+    public function exists(string $hook, callable|string|array|null $callback = null, ?int $priority = null): bool
     {
         // If no specific callback is requested, just check if the hook name exists
         if ($callback === null) {
@@ -151,6 +152,8 @@ abstract class AbstractHook implements HookInterface
         if (! isset($this->hooks[$hook])) {
             return false;
         }
+
+        $callback = $this->registeredCallbackFor($hook, $callback, $priority);
 
         // Get all callbacks for this hook
         // Filter by callback and priority if specified
@@ -209,6 +212,13 @@ abstract class AbstractHook implements HookInterface
             return $this->resolveClassMethodCallback($hook, $callback, $acceptedArgs);
         }
 
+        // A [ClassName, 'method'] pair naming an instance method cannot be called
+        // statically: instantiate the class, as for a class name
+        if ($this->isInstanceMethodReference($callback)) {
+            /** @var array{0: class-string, 1: string} $callback */
+            return $this->resolveInstanceMethodCallback($callback[0], $callback[1], $acceptedArgs);
+        }
+
         // If callback is already a callable (function or closure), detect argument count
         if (is_callable($callback)) {
             return [
@@ -239,10 +249,7 @@ abstract class AbstractHook implements HookInterface
     protected function resolveClassMethodCallback(string $hook, string $className, ?int $acceptedArgs): array
     {
         try {
-            // Resolve through DI container if available, fallback to direct instantiation
-            $instance = $this->callbackResolver instanceof CallbackResolverInterface
-                ? $this->callbackResolver->resolve($className)
-                : new $className;
+            $instance = $this->resolveInstance($className);
 
             // Prepare the method name (similar to Laravel's Str::studly but without dependency)
             $hook = preg_replace('/[^a-zA-Z0-9_]+/', '_', $hook);
@@ -260,6 +267,42 @@ abstract class AbstractHook implements HookInterface
         } catch (\Exception $exception) {
             throw new \RuntimeException(sprintf("Failed to resolve '%s': ", $className).$exception->getMessage(), $exception->getCode(), $exception);
         }
+    }
+
+    /**
+     * Instantiate a class and bind one of its instance methods.
+     *
+     * @param  class-string  $className  The class name
+     * @param  string  $method  The instance method to call
+     * @param  int|null  $acceptedArgs  Optional. Number of arguments (auto-detected if null)
+     * @return array Resolved class method callback and argument count
+     *
+     * @throws \RuntimeException
+     */
+    protected function resolveInstanceMethodCallback(string $className, string $method, ?int $acceptedArgs): array
+    {
+        try {
+            $instance = $this->resolveInstance($className);
+        } catch (\Throwable $throwable) {
+            throw new \RuntimeException(sprintf("Failed to resolve '%s': ", $className).$throwable->getMessage(), (int) $throwable->getCode(), $throwable);
+        }
+
+        return [
+            'callable' => [$instance, $method],
+            'args' => $acceptedArgs ?? $this->detectArguments([$instance, $method]),
+        ];
+    }
+
+    /**
+     * Resolve a class instance through the callback resolver, or instantiate it directly.
+     *
+     * @param  class-string  $className  The class name
+     */
+    protected function resolveInstance(string $className): object
+    {
+        return $this->callbackResolver instanceof CallbackResolverInterface
+            ? $this->callbackResolver->resolve($className)
+            : new $className;
     }
 
     /**
@@ -397,6 +440,56 @@ abstract class AbstractHook implements HookInterface
         }
 
         return false;
+    }
+
+    /**
+     * Whether a callback is a [ClassName, 'method'] pair naming an existing instance method.
+     *
+     * Static methods and classes not loaded yet are left out: the former are
+     * callable as they are, the latter keep their deferred resolution.
+     */
+    private function isInstanceMethodReference(callable|string|array $callback): bool
+    {
+        if (! is_array($callback) || count($callback) !== 2 || ! array_is_list($callback)) {
+            return false;
+        }
+
+        [$className, $method] = $callback;
+
+        if (! is_string($className) || ! is_string($method) || ! class_exists($className) || ! method_exists($className, $method)) {
+            return false;
+        }
+
+        return ! (new \ReflectionMethod($className, $method))->isStatic();
+    }
+
+    /**
+     * Find the callback registered through this class that a removal or lookup request refers to.
+     *
+     * Only [ClassName, 'method'] requests for instance methods are matched, since
+     * they were registered as [$instance, 'method']; any other request is returned as is.
+     *
+     * @param  string  $hook  The hook name
+     * @param  callable|string|array  $callback  The requested callback
+     * @param  int|null  $priority  Optional. Priority the registered callback must have
+     */
+    private function registeredCallbackFor(string $hook, callable|string|array $callback, ?int $priority = null): callable|string|array
+    {
+        if (! $this->isInstanceMethodReference($callback)) {
+            return $callback;
+        }
+
+        foreach ($this->hooks[$hook] ?? [] as $item) {
+            if ($priority !== null && $item['priority'] !== $priority) {
+                continue;
+            }
+
+            if ($this->compareCallbacks($item['callback'], $callback)) {
+                return $item['callback'];
+            }
+        }
+
+        return $callback;
     }
 
     /**

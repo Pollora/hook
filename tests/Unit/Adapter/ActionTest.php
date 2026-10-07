@@ -40,3 +40,26 @@ describe('WordPress Action Adapter', function (): void {
             ->and($GLOBALS['wp_actions_done'][0]['args'])->toBe(['arg1', 'arg2']);
     });
 });
+
+describe('Instance methods named by class', function (): void {
+    it('hands WordPress a callable instance method', function (): void {
+        $className = 'ActionInstanceHandler_'.uniqid();
+        eval(sprintf('class %s { public function handle(int $id) {} }', $className));
+
+        (new Action)->add('save_post', [$className, 'handle']);
+
+        expect(is_callable($GLOBALS['wp_actions'][0]['callback']))->toBeTrue()
+            ->and($GLOBALS['wp_actions'][0]['args'])->toBe(1);
+    });
+
+    it('removes from WordPress the instance it registered', function (): void {
+        $className = 'ActionRemovedHandler_'.uniqid();
+        eval(sprintf('class %s { public function handle(int $id) {} }', $className));
+        $action = new Action;
+        $action->add('save_post', [$className, 'handle']);
+
+        $action->remove('save_post', [$className, 'handle']);
+
+        expect($GLOBALS['wp_actions_removed'][0]['callback'])->toBe($GLOBALS['wp_actions'][0]['callback']);
+    });
+});
