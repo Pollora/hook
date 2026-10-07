@@ -200,7 +200,7 @@ final class PendingAsync
      *
      *     ->capture(fn (int $postId, WP_Post $post) => ['status' => $post->post_status])
      *
-     * @param  callable(mixed...): array<string, mixed>  $capture
+     * @param  callable  $capture  Receives the hook arguments, returns array<string, mixed>
      */
     public function capture(callable $capture): self
     {
@@ -214,7 +214,7 @@ final class PendingAsync
      *
      *     ->when(fn (int $postId) => ! wp_is_post_revision($postId))
      *
-     * @param  callable(mixed...): bool  $condition
+     * @param  callable  $condition  Receives the hook arguments, returns bool
      */
     public function when(callable $condition): self
     {

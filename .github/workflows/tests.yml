@@ -96,6 +96,7 @@ jobs:
           wp config create --path=.wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306
           wp core install --path=.wordpress --url=http://localhost --title=Hook \
             --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          wp plugin install action-scheduler --activate --path=.wordpress
 
       - name: Run tests against WordPress
         run: composer test:wordpress

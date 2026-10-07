@@ -50,7 +50,7 @@ it('builds a registered driver once', function (): void {
 it('names the registered drivers when one is unknown', function (): void {
     Async::extend('custom', fn (): AsyncDriver => asyncTestDriver(true));
 
-    expect(fn () => Async::driver('rabbitmq'))->toThrow(DriverUnavailable::class, 'Registered drivers: custom, wp-cron, sync.');
+    expect(fn () => Async::driver('rabbitmq'))->toThrow(DriverUnavailable::class, 'Registered drivers: custom, action-scheduler, wp-cron, sync.');
 });
 
 it('refuses a driver unavailable in this request', function (): void {
@@ -123,8 +123,29 @@ describe('Default driver', function (): void {
         expect(Async::defaultDriver())->toBe('sync');
     });
 
-    it('resolves auto to WP-Cron until another mechanism is supported', function (): void {
-        Async::setDefaultDriver('auto');
+    it('resolves auto to WP-Cron when Action Scheduler is not available', function (): void {
+        $GLOBALS['as_initialized'] = false;
+
+        expect(Async::defaultDriver())->toBe('wp-cron');
+    });
+
+    it('resolves auto to Action Scheduler once it is initialised', function (): void {
+        $GLOBALS['as_initialized'] = true;
+
+        try {
+            expect(Async::defaultDriver())->toBe('action-scheduler');
+        } finally {
+            $GLOBALS['as_initialized'] = false;
+        }
+    });
+
+    it('resolves auto through the drivers set for it, in order', function (): void {
+        Async::extend('queue', fn (): AsyncDriver => asyncTestDriver(true));
+        Async::setAutoDrivers(['queue', 'wp-cron']);
+
+        expect(Async::defaultDriver())->toBe('queue');
+
+        Async::extend('queue', fn (): AsyncDriver => asyncTestDriver(false));
 
         expect(Async::defaultDriver())->toBe('wp-cron');
     });

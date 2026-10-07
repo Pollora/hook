@@ -4,6 +4,12 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **The default driver is now `auto`**: Action Scheduler when a plugin bundling it is active and initialised, WP-Cron otherwise, resolved on each dispatch. A site with WooCommerce therefore queues through Action Scheduler after upgrading; payloads already queued through WP-Cron still run. Set `POLLORA_ASYNC_DRIVER` to `wp-cron` to keep the previous behaviour.
+- The WP-Cron recovery task also leaves alone a stored payload whose Action Scheduler action is still pending.
+- The type of `capture()` and `when()` callbacks is documented as `callable`, so closures with typed parameters pass static analysis.
+
 ### Added
 
 - `capture()` on an asynchronous registration: a callback run at trigger time, in the original request, with the hook arguments; the array it returns is read back at execution through `AsyncContext::get()`. Captured values travel like arguments. A handler class's public `capture()` method is used when `capture()` is not called.
@@ -12,6 +18,8 @@ All notable changes to `pollora/hook` are documented in this file.
 - `asUser()`: run as the user who fired the hook, then remove that user. Without it the handler runs without a current user.
 - `onQueue()`: queue name, used as the Action Scheduler group and the Laravel queue; WP-Cron ignores it.
 - `unique()`: merge identical triggers (same hook, same handler, same arguments) while the first one has not started running. The lock is an option that is not autoloaded, taken atomically with `add_option()`, released when the first attempt starts, and expiring after `unique(for: …)` seconds (one day by default) if never released; the daily maintenance task deletes expired locks. A lock that cannot be stored is a queuing failure, never a silent merge.
+- `action-scheduler` driver, offered when a plugin bundling Action Scheduler is active and its data store is initialised (never a dependency). The payload travels whole as the action argument, the queue name becomes the group (`pollora` by default), and history is visible in Tools › Scheduled Actions. A payload too long for Action Scheduler's arguments (8,000 characters as JSON) is kept in an option that is not autoloaded and the action carries only its identifier.
+- `Async::setAutoDrivers()`: the drivers `auto` tries, in order.
 - Payloads record the driver that queued them, the queue, `asUser`, the backoff and the unique lock. These fields are optional, so payloads queued by 1.2.0 still run.
 
 ## [1.2.0] - 2026-10-07

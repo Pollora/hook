@@ -222,7 +222,7 @@ describe('Dispatch', function (): void {
 
     it('falls back to the default driver and reports, in production, when the requested one is unknown', function (): void {
         Async::setDebug(false);
-        Async::extend(Async::DEFAULT_DRIVER, fn (): AsyncDriver => $this->driver);
+        Async::extend('wp-cron', fn (): AsyncDriver => $this->driver);
         $this->action->add('save_post', [RecordingHandler::class, 'handle'])->async()->via('rabbitmq');
 
         wp_stub_fire('save_post', 1);

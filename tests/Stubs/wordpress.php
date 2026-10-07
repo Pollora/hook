@@ -375,3 +375,51 @@ if (! function_exists('wp_cache_delete')) {
         return true;
     }
 }
+
+/*
+ * Action Scheduler, available only when $GLOBALS['as_initialized'] is true.
+ * Actions are kept in $GLOBALS['as_actions']; $GLOBALS['as_fail'] makes creating one fail.
+ */
+
+if (! class_exists('ActionScheduler', false)) {
+    class ActionScheduler
+    {
+        public static function is_initialized(?string $functionName = null): bool
+        {
+            return $GLOBALS['as_initialized'] ?? false;
+        }
+    }
+}
+
+if (! function_exists('as_enqueue_async_action')) {
+    function as_enqueue_async_action(string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10): int
+    {
+        return as_schedule_single_action(time(), $hook, $args, $group);
+    }
+}
+
+if (! function_exists('as_schedule_single_action')) {
+    function as_schedule_single_action(int $timestamp, string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10): int
+    {
+        if ($GLOBALS['as_fail'] ?? false) {
+            throw new InvalidArgumentException('ActionScheduler_Action::$args too long.');
+        }
+
+        $GLOBALS['as_actions'][] = ['timestamp' => $timestamp, 'hook' => $hook, 'args' => $args, 'group' => $group];
+
+        return count($GLOBALS['as_actions']);
+    }
+}
+
+if (! function_exists('as_has_scheduled_action')) {
+    function as_has_scheduled_action(string $hook, ?array $args = null, string $group = ''): bool
+    {
+        foreach ($GLOBALS['as_actions'] ?? [] as $action) {
+            if ($action['hook'] === $hook && ($args === null || $action['args'] === $args)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
