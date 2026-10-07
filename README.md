@@ -158,6 +158,8 @@ Action::add('save_post_event', [CrmSync::class, 'push'])
 
 Choose the default with the `POLLORA_ASYNC_DRIVER` constant in `wp-config.php`, or the `pollora/hook/async_driver` filter. More drivers register through `Async::extend()`.
 
+**Dependencies.** `Async::injectParametersUsing($resolver)` injects, at execution, the handler parameters typed with a class that does not travel as a hook argument, such as a mailer or an API client. Pollora resolves them from its container.
+
 **Closures.** With `laravel/serializable-closure` installed, a closure can be queued. It is serialized and signed with a key derived from the WordPress salts, and the signature is checked before anything is unserialized. Declare it `static` and let it use IDs rather than objects.
 
 **Failures.** At execution, the original site and locale are restored, and a handler that fires its own hook does not queue itself again. A handler that throws is retried while it has attempts left; the last failure is reported and announced through the `pollora/async/failed` action. When an action cannot be queued, `WP_DEBUG` throws; otherwise the incident goes to the PHP error log (or `Async::reportUsing()`) and the handler runs in place, so the work always happens.

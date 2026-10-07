@@ -25,8 +25,14 @@ it('puts the context where the handler asks for it and the hook arguments in ord
     expect(HandlerArguments::for($handler, [7, 'publish'], $this->context))->toBe([7, $this->context, 'publish']);
 });
 
-it('stops at the arguments the hook passed', function (): void {
+it('fills a missing hook argument with its default value, so a later context still arrives', function (): void {
     $handler = fn (int $id, string $status = 'draft', ?AsyncContext $context = null): null => null;
+
+    expect(HandlerArguments::for($handler, [7], $this->context))->toBe([7, 'draft', $this->context]);
+});
+
+it('stops at the first missing hook argument without a default value', function (): void {
+    $handler = fn (int $id, string $status, ?AsyncContext $context = null): null => null;
 
     expect(HandlerArguments::for($handler, [7], $this->context))->toBe([7]);
 });

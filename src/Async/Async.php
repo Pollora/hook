@@ -41,6 +41,8 @@ final class Async
      */
     public const string DRIVER_FILTER = 'pollora/hook/async_driver';
 
+    private const array DEFAULTS = ['tries' => 1, 'backoff' => [10, 60, 300], 'asUser' => false];
+
     /** @var array<string, \Closure(): AsyncDriver> */
     private static array $factories = [];
 
@@ -57,6 +59,15 @@ final class Async
     private static ?string $closureKey = null;
 
     private static ?AsyncFake $fake = null;
+
+    /** @var array{tries: int, backoff: list<int>, asUser: bool} */
+    private static array $defaults = self::DEFAULTS;
+
+    /** @var (\Closure(\ReflectionParameter): mixed)|null */
+    private static ?\Closure $injector = null;
+
+    /** @var (\Closure(\ReflectionParameter): bool)|null */
+    private static ?\Closure $injectable = null;
 
     private static ?ArgumentNormalizer $normalizer = null;
 
@@ -107,6 +118,94 @@ final class Async
         }
 
         return $driver;
+    }
+
+    /**
+     * Options every asynchronous registration starts from. The framework sets them from config/hooks.php.
+     *
+     * @param  int|null  $tries  Attempts, 1 by default
+     * @param  int|list<int>|null  $backoff  Seconds before each retry, [10, 60, 300] by default
+     * @param  bool|null  $asUser  Run as the user who fired the hook, false by default
+     *
+     * @throws \InvalidArgumentException When a value is invalid
+     */
+    public static function setDefaults(?int $tries = null, int|array|null $backoff = null, ?bool $asUser = null): void
+    {
+        self::$defaults = [
+            'tries' => $tries === null ? self::$defaults['tries'] : PendingAsync::validTries($tries),
+            'backoff' => $backoff === null ? self::$defaults['backoff'] : PendingAsync::validBackoff($backoff),
+            'asUser' => $asUser ?? self::$defaults['asUser'],
+        ];
+    }
+
+    /**
+     * @return array{tries: int, backoff: list<int>, asUser: bool}
+     */
+    public static function defaults(): array
+    {
+        return self::$defaults;
+    }
+
+    /**
+     * Inject the handler parameters that are not hook arguments, at execution.
+     *
+     * A parameter is injected when $isInjectable says so; by default, when it is
+     * typed with a class or interface that does not travel as a hook argument
+     * (WordPress objects, enums, dates, JsonSerializable and AsyncContext do).
+     * Injected parameters are not taken from the hook. The framework resolves
+     * them from its container.
+     *
+     *     Async::injectParametersUsing(fn (ReflectionParameter $parameter) => $container->make($parameter->getType()->getName()));
+     *
+     * @param  (callable(\ReflectionParameter): mixed)|null  $resolver  Null to stop injecting
+     * @param  (callable(\ReflectionParameter): bool)|null  $isInjectable
+     */
+    public static function injectParametersUsing(?callable $resolver, ?callable $isInjectable = null): void
+    {
+        self::$injector = $resolver === null ? null : $resolver(...);
+        self::$injectable = $isInjectable === null ? null : $isInjectable(...);
+    }
+
+    /**
+     * @internal
+     */
+    public static function isInjectable(\ReflectionParameter $parameter): bool
+    {
+        if (! self::$injector instanceof \Closure) {
+            return false;
+        }
+
+        if (self::$injectable instanceof \Closure) {
+            return (self::$injectable)($parameter) === true;
+        }
+
+        $type = $parameter->getType();
+
+        if (! $type instanceof \ReflectionNamedType || $type->isBuiltin()) {
+            return false;
+        }
+
+        $name = $type->getName();
+
+        if (! class_exists($name) && ! interface_exists($name)) {
+            return false;
+        }
+
+        foreach ([AsyncContext::class, \UnitEnum::class, \DateTimeInterface::class, \JsonSerializable::class, 'WP_Post', 'WP_Term', 'WP_User', 'WP_Comment'] as $travelling) {
+            if (is_a($name, $travelling, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @internal
+     */
+    public static function inject(\ReflectionParameter $parameter): mixed
+    {
+        return self::$injector instanceof \Closure ? (self::$injector)($parameter) : null;
     }
 
     /**
@@ -255,8 +354,10 @@ final class Async
      * Run a queued handler, from the message a driver hands back.
      *
      * @param  string  $message  The payload as JSON, or the identifier of a payload kept by PayloadStore
+     * @param  bool  $throwOnFinalFailure  Throw the last failure instead of reporting it, for a driver whose
+     *                                     queue records failures itself (a Laravel job lands in failed_jobs)
      */
-    public static function receive(string $message): void
+    public static function receive(string $message, bool $throwOnFinalFailure = false): void
     {
         if (PayloadStore::handles($message)) {
             $message = PayloadStore::claim($message);
@@ -269,12 +370,16 @@ final class Async
         try {
             $payload = AsyncPayload::fromJson($message);
         } catch (\Throwable $throwable) {
+            if ($throwOnFinalFailure) {
+                throw $throwable;
+            }
+
             self::report($throwable);
 
             return;
         }
 
-        self::runner()->run($payload);
+        self::runner()->run($payload, $throwOnFinalFailure);
     }
 
     /**
@@ -356,6 +461,9 @@ final class Async
         self::$resolver = null;
         self::$closureKey = null;
         self::$fake = null;
+        self::$defaults = self::DEFAULTS;
+        self::$injector = null;
+        self::$injectable = null;
         self::$normalizer = null;
         self::$dispatcher = null;
         self::$runner = null;
