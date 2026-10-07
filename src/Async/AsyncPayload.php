@@ -33,6 +33,7 @@ final readonly class AsyncPayload
      * @param  string|null  $queue  Queue name: the group with Action Scheduler, ignored by WP-Cron
      * @param  bool  $asUser  Run as the user who fired the hook
      * @param  list<int>  $backoff  Seconds before each retry; the last value repeats
+     * @param  string|null  $uniqueKey  Lock to release when the first attempt starts, see UniqueLock
      */
     public function __construct(
         public string $id,
@@ -49,6 +50,7 @@ final readonly class AsyncPayload
         public ?string $queue = null,
         public bool $asUser = false,
         public array $backoff = [],
+        public ?string $uniqueKey = null,
     ) {}
 
     /**
@@ -107,6 +109,7 @@ final readonly class AsyncPayload
             queue: self::optionalField($data, 'queue', 'is_string', null),
             asUser: self::optionalField($data, 'asUser', 'is_bool', false),
             backoff: self::backoffField($data),
+            uniqueKey: self::optionalField($data, 'uniqueKey', 'is_string', null),
         );
     }
 
@@ -133,6 +136,7 @@ final readonly class AsyncPayload
             'queue' => $this->queue,
             'asUser' => $this->asUser,
             'backoff' => $this->backoff,
+            'uniqueKey' => $this->uniqueKey,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
     }
 
