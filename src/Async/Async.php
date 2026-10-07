@@ -10,6 +10,7 @@ use Pollora\Hook\Async\Drivers\ActionSchedulerDriver;
 use Pollora\Hook\Async\Drivers\SyncDriver;
 use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\DriverUnavailable;
+use Pollora\Hook\Async\Exceptions\UnresolvableHandler;
 use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
 
 /**
@@ -52,6 +53,8 @@ final class Async
     private static array $autoDrivers = ['action-scheduler', 'wp-cron'];
 
     private static ?CallbackResolverInterface $resolver = null;
+
+    private static ?string $closureKey = null;
 
     private static ?ArgumentNormalizer $normalizer = null;
 
@@ -161,6 +164,33 @@ final class Async
     {
         self::$resolver = $resolver;
         self::$runner = null;
+    }
+
+    /**
+     * Sign queued closures with this key instead of one derived from the WordPress salts.
+     * The framework passes its application key. Null to derive it again.
+     */
+    public static function useClosureKey(?string $key): void
+    {
+        self::$closureKey = $key === null || $key === '' ? null : $key;
+    }
+
+    /**
+     * Key that signs queued closures.
+     *
+     * @throws UnresolvableHandler When no key was set and the WordPress salts are not available
+     */
+    public static function closureKey(): string
+    {
+        if (self::$closureKey !== null) {
+            return self::$closureKey;
+        }
+
+        if (! function_exists('wp_salt')) {
+            throw UnresolvableHandler::closureKey();
+        }
+
+        return hash_hmac('sha256', 'pollora/hook:async-closures', wp_salt('auth'));
     }
 
     /**
@@ -284,6 +314,7 @@ final class Async
         self::$defaultDriver = null;
         self::$autoDrivers = ['action-scheduler', 'wp-cron'];
         self::$resolver = null;
+        self::$closureKey = null;
         self::$normalizer = null;
         self::$dispatcher = null;
         self::$runner = null;

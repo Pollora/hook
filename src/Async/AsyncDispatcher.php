@@ -27,10 +27,6 @@ final readonly class AsyncDispatcher
      */
     public function dispatch(QueuedHandler $handler, array $arguments): void
     {
-        if (Async::runner()->isRunning($handler->key())) {
-            return;
-        }
-
         // Outside the fallback below: a condition that throws fails as it would synchronously
         $condition = $handler->options->condition();
         if ($condition instanceof \Closure && $condition(...$arguments) !== true) {
@@ -40,12 +36,16 @@ final readonly class AsyncDispatcher
         $uniqueKey = null;
 
         try {
+            if (Async::runner()->isRunning($handler->key())) {
+                return;
+            }
+
             [$driverName, $driver] = $this->driverFor($handler);
             $normalizedArguments = $this->normalizer->normalize($arguments);
 
             $uniqueFor = $handler->options->uniqueFor();
             if ($uniqueFor !== null) {
-                $key = UniqueLock::key($handler->hook, $handler->descriptor, $normalizedArguments);
+                $key = UniqueLock::key($handler->hook, $handler->descriptor(), $normalizedArguments);
 
                 if (! UniqueLock::acquire($key, $uniqueFor)) {
                     return;
@@ -57,7 +57,7 @@ final readonly class AsyncDispatcher
             $payload = new AsyncPayload(
                 id: AsyncPayload::newId(),
                 hook: $handler->hook,
-                handler: $handler->descriptor,
+                handler: $handler->descriptor(),
                 priority: $handler->priority,
                 arguments: $normalizedArguments,
                 origin: self::origin(),
@@ -81,7 +81,7 @@ final readonly class AsyncDispatcher
                 throw $throwable;
             }
 
-            Async::report($throwable, ['hook' => $handler->hook, 'handler' => $handler->descriptor]);
+            Async::report($throwable, ['hook' => $handler->hook, 'handler' => $handler->label()]);
 
             $origin = self::origin();
             Async::runner()->call($handler->handler, $arguments, new AsyncContext(
@@ -151,7 +151,7 @@ final readonly class AsyncDispatcher
                     throw $driverUnavailable;
                 }
 
-                Async::report($driverUnavailable, ['hook' => $handler->hook, 'handler' => $handler->descriptor]);
+                Async::report($driverUnavailable, ['hook' => $handler->hook, 'handler' => $handler->label()]);
             }
         }
 

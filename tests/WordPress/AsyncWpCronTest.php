@@ -198,3 +198,29 @@ it('uses the driver set by the POLLORA_ASYNC_DRIVER constant', function (): void
         ->and(fixtureRuns()[0]['cron'])->toBeFalse()
         ->and(scheduledExecutions())->toBe([]);
 });
+
+it('runs a closure, signed with the WordPress salts, through WP-Cron', function (): void {
+    do_action('pollora_fixture_closure', 3);
+
+    [$id] = scheduledExecutions()[0]['args'];
+    expect(json_decode(get_option(WpCronDriver::OPTION_PREFIX.$id), true)['handler'])->toStartWith('closure:');
+
+    runWpCron();
+
+    expect(fixtureRuns())->toBe([['key' => 'closure', 'id' => 3, 'cron' => true]]);
+});
+
+it('refuses to run a closure whose signature does not match', function (): void {
+    do_action('pollora_fixture_closure', 3);
+    [$id] = scheduledExecutions()[0]['args'];
+    $option = WpCronDriver::OPTION_PREFIX.$id;
+    $payload = json_decode(get_option($option), true);
+    $payload['handler'] = preg_replace('/^closure:[0-9a-f]{64}:/', 'closure:'.str_repeat('0', 64).':', $payload['handler']);
+    update_option($option, json_encode($payload));
+
+    runWpCron();
+
+    $runs = fixtureRuns();
+    expect(array_column($runs, 'key'))->toBe(['failed'])
+        ->and($runs[0]['message'])->toContain('signature of a queued closure is invalid');
+});
