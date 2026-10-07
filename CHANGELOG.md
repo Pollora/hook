@@ -8,6 +8,10 @@ All notable changes to `pollora/hook` are documented in this file.
 
 - `capture()` on an asynchronous registration: a callback run at trigger time, in the original request, with the hook arguments; the array it returns is read back at execution through `AsyncContext::get()`. Captured values travel like arguments. A handler class's public `capture()` method is used when `capture()` is not called.
 - `when()`: queue only when the callback, given the hook arguments, returns `true`. It runs before the capture, and an exception it throws goes through, as it would synchronously.
+- `tries()`: a handler that throws is queued again, through the driver that queued it, until it has used its attempts; each failed attempt is reported, the last one is fired as `pollora/async/failed`. `backoff()` sets the seconds before each retry (default 10, 60, then 300; the last value repeats). A handler that no longer exists is not retried.
+- `asUser()`: run as the user who fired the hook, then remove that user. Without it the handler runs without a current user.
+- `onQueue()`: queue name, used as the Action Scheduler group and the Laravel queue; WP-Cron ignores it.
+- Payloads record the driver that queued them, the queue, `asUser` and the backoff. These fields are optional, so payloads queued by 1.2.0 still run.
 
 ## [1.2.0] - 2026-10-07
 

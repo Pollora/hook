@@ -86,3 +86,27 @@ it('refuses a payload with a missing or mistyped field', function (string $field
     ['origin.userId', '3', 'origin.userId'],
     ['origin.locale', null, 'origin.locale'],
 ]);
+
+it('reads a payload queued by 1.2.0, without the fields added since', function (): void {
+    $data = json_decode(makeAsyncPayload()->toJson(), true);
+    unset($data['driver'], $data['queue'], $data['asUser'], $data['backoff']);
+
+    $payload = AsyncPayload::fromJson(json_encode($data));
+
+    expect($payload->driver)->toBeNull()
+        ->and($payload->queue)->toBeNull()
+        ->and($payload->asUser)->toBeFalse()
+        ->and($payload->backoff)->toBe([])
+        ->and($payload->retryDelay(1))->toBe(0);
+});
+
+it('refuses an invalid backoff', function (mixed $backoff): void {
+    $data = json_decode(makeAsyncPayload()->toJson(), true);
+    $data['backoff'] = $backoff;
+
+    expect(fn () => AsyncPayload::fromJson(json_encode($data)))->toThrow(InvalidPayload::class, "'backoff'");
+})->with([
+    'negative' => [[10, -5]],
+    'not a list' => [['a' => 10]],
+    'not an integer' => [['10']],
+]);

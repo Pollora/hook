@@ -26,10 +26,18 @@ final class RecordingDriver implements AsyncDriver
         $this->queued[] = ['payload' => $payload, 'delay' => $delay];
     }
 
+    /**
+     * Run every queued payload, including those queued while running (retries).
+     */
     public function runAll(): void
     {
-        foreach ($this->queued as $entry) {
-            Async::receive($entry['payload']->toJson());
+        for ($index = 0; $index < count($this->queued); $index++) {
+            $this->run($index);
         }
+    }
+
+    public function run(int $index): void
+    {
+        Async::receive($this->queued[$index]['payload']->toJson());
     }
 }

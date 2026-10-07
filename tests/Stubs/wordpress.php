@@ -162,6 +162,16 @@ if (! function_exists('get_current_user_id')) {
     }
 }
 
+if (! function_exists('wp_set_current_user')) {
+    function wp_set_current_user(int $userId): WP_User
+    {
+        $GLOBALS['wp_switches'][] = ['user', $userId];
+        $GLOBALS['wp_state']['user'] = $userId;
+
+        return new WP_User($userId);
+    }
+}
+
 if (! function_exists('get_current_blog_id')) {
     function get_current_blog_id(): int
     {
