@@ -56,3 +56,46 @@ jobs:
 
       - name: Run PHPStan
         run: composer phpstan:ci
+  wordpress:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        wordpress: ['latest', 'nightly']
+
+    name: WordPress ${{ matrix.wordpress }}
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: dom, mbstring, mysqli
+          tools: wp-cli
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-stable --prefer-dist --no-interaction --no-progress
+
+      - name: Install WordPress
+        run: |
+          wp core download --path=.wordpress --version=${{ matrix.wordpress }}
+          wp config create --path=.wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306
+          wp core install --path=.wordpress --url=http://localhost --title=Hook \
+            --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+
+      - name: Run tests against WordPress
+        run: composer test:wordpress

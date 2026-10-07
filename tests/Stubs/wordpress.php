@@ -97,7 +97,7 @@ if (! function_exists('apply_filters')) {
 if (! class_exists('WP_Post')) {
     class WP_Post
     {
-        public function __construct(public int $ID = 0, public string $post_status = 'publish') {}
+        public function __construct(public int $ID = 0, public string $post_status = 'publish', public string $post_title = '') {}
     }
 }
 
