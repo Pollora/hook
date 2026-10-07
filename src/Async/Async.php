@@ -6,6 +6,7 @@ namespace Pollora\Hook\Async;
 
 use Pollora\Hook\Async\Contracts\AsyncDriver;
 use Pollora\Hook\Async\Contracts\ObjectReference;
+use Pollora\Hook\Async\Drivers\ActionSchedulerDriver;
 use Pollora\Hook\Async\Drivers\SyncDriver;
 use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\DriverUnavailable;
@@ -24,7 +25,10 @@ final class Async
      */
     public const string HOOK = 'pollora/async/run';
 
-    public const string DEFAULT_DRIVER = 'wp-cron';
+    /**
+     * Default driver: the first available among the auto drivers.
+     */
+    public const string DEFAULT_DRIVER = 'auto';
 
     /**
      * Constant that sets the default driver, in wp-config.php.
@@ -43,6 +47,9 @@ final class Async
     private static array $drivers = [];
 
     private static ?string $defaultDriver = null;
+
+    /** @var list<string> Drivers 'auto' tries, in order */
+    private static array $autoDrivers = ['action-scheduler', 'wp-cron'];
 
     private static ?CallbackResolverInterface $resolver = null;
 
@@ -96,10 +103,12 @@ final class Async
     /**
      * Name of the default driver, from the first of: setDefaultDriver(), the
      * POLLORA_ASYNC_DRIVER constant, the 'pollora/hook/async_driver' filter,
-     * 'wp-cron'.
+     * 'auto'.
      *
-     * 'auto' picks the best mechanism available; until the Action Scheduler
-     * driver exists, that is WP-Cron.
+     * 'auto' resolves to the first available of the auto drivers: Action
+     * Scheduler when a plugin bundling it is active and initialised, WP-Cron
+     * otherwise. It is resolved on each dispatch, so a hook fired before Action
+     * Scheduler is initialised still queues, through WP-Cron.
      */
     public static function defaultDriver(): string
     {
@@ -116,7 +125,17 @@ final class Async
 
         $driver ??= self::DEFAULT_DRIVER;
 
-        return $driver === 'auto' ? self::DEFAULT_DRIVER : $driver;
+        return $driver === 'auto' ? self::resolveAuto() : $driver;
+    }
+
+    /**
+     * Set the drivers 'auto' tries, in order. The framework puts its Laravel queue first.
+     *
+     * @param  array<int, string>  $drivers  The last one should always be available: 'wp-cron'
+     */
+    public static function setAutoDrivers(array $drivers): void
+    {
+        self::$autoDrivers = array_values($drivers);
     }
 
     /**
@@ -165,12 +184,12 @@ final class Async
     /**
      * Run a queued handler, from the message a driver hands back.
      *
-     * @param  string  $message  The payload as JSON, or the identifier of a payload the wp-cron driver stored
+     * @param  string  $message  The payload as JSON, or the identifier of a payload kept by PayloadStore
      */
     public static function receive(string $message): void
     {
-        if (WpCronDriver::handles($message)) {
-            $message = WpCronDriver::claim($message);
+        if (PayloadStore::handles($message)) {
+            $message = PayloadStore::claim($message);
 
             if ($message === null) {
                 return;
@@ -263,12 +282,29 @@ final class Async
         self::$factories = [];
         self::$drivers = [];
         self::$defaultDriver = null;
+        self::$autoDrivers = ['action-scheduler', 'wp-cron'];
         self::$resolver = null;
         self::$normalizer = null;
         self::$dispatcher = null;
         self::$runner = null;
         self::$debug = null;
         self::$reporter = null;
+    }
+
+    /**
+     * The first available auto driver, WP-Cron when none is.
+     */
+    private static function resolveAuto(): string
+    {
+        $factories = self::factories();
+
+        foreach (self::$autoDrivers as $name) {
+            if (isset($factories[$name]) && (self::$drivers[$name] ??= $factories[$name]())->available()) {
+                return $name;
+            }
+        }
+
+        return 'wp-cron';
     }
 
     private static function normalizer(): ArgumentNormalizer
@@ -282,6 +318,7 @@ final class Async
     private static function factories(): array
     {
         return self::$factories + [
+            'action-scheduler' => static fn (): AsyncDriver => new ActionSchedulerDriver,
             'wp-cron' => static fn (): AsyncDriver => new WpCronDriver,
             'sync' => static fn (): AsyncDriver => new SyncDriver,
         ];

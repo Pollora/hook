@@ -8,6 +8,7 @@ use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Contracts\AsyncDriver;
 use Pollora\Hook\Async\Exceptions\AsyncException;
+use Pollora\Hook\Async\PayloadStore;
 use Pollora\Hook\Async\UniqueLock;
 
 /**
@@ -27,7 +28,7 @@ use Pollora\Hook\Async\UniqueLock;
  */
 final class WpCronDriver implements AsyncDriver
 {
-    public const string OPTION_PREFIX = 'pollora_async_';
+    public const string OPTION_PREFIX = PayloadStore::OPTION_PREFIX;
 
     /**
      * Daily task that schedules again the payloads whose event was lost.
@@ -44,8 +45,6 @@ final class WpCronDriver implements AsyncDriver
      */
     public const int RECOVERY_BATCH = 500;
 
-    private const string ID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/';
-
     public function available(): bool
     {
         return function_exists('wp_schedule_single_event') && function_exists('add_option');
@@ -56,16 +55,16 @@ final class WpCronDriver implements AsyncDriver
      */
     public function dispatch(AsyncPayload $payload, int $delay = 0): void
     {
-        $option = self::OPTION_PREFIX.$payload->id;
-
-        if (! add_option($option, $payload->toJson(), '', false)) {
-            throw new AsyncException(sprintf("WP-Cron: the payload of '%s' could not be stored.", $payload->hook));
+        try {
+            PayloadStore::store($payload);
+        } catch (AsyncException $asyncException) {
+            throw new AsyncException('WP-Cron: '.lcfirst($asyncException->getMessage()), 0, $asyncException);
         }
 
         $scheduled = wp_schedule_single_event(time() + max(0, $delay), Async::HOOK, [$payload->id], true);
 
         if ($scheduled !== true) {
-            delete_option($option);
+            PayloadStore::forget($payload->id);
 
             $reason = is_object($scheduled) && method_exists($scheduled, 'get_error_message') ? ': '.$scheduled->get_error_message() : '.';
 
@@ -116,7 +115,7 @@ final class WpCronDriver implements AsyncDriver
         foreach ((array) $rows as $row) {
             $id = substr((string) $row['option_name'], strlen(self::OPTION_PREFIX));
 
-            if (! self::handles($id) || wp_next_scheduled(Async::HOOK, [$id]) !== false) {
+            if (! PayloadStore::handles($id) || self::isPending($id)) {
                 continue;
             }
 
@@ -153,7 +152,7 @@ final class WpCronDriver implements AsyncDriver
      */
     public static function handles(string $message): bool
     {
-        return preg_match(self::ID_PATTERN, $message) === 1;
+        return PayloadStore::handles($message);
     }
 
     /**
@@ -166,13 +165,19 @@ final class WpCronDriver implements AsyncDriver
      */
     public static function claim(string $id): ?string
     {
-        $option = self::OPTION_PREFIX.$id;
-        $payload = get_option($option, null);
+        return PayloadStore::claim($id);
+    }
 
-        if (! is_string($payload) || ! delete_option($option)) {
-            return null;
+    /**
+     * Whether an event still carries the identifier: a WP-Cron event, or an
+     * Action Scheduler action for a payload too long for its arguments.
+     */
+    private static function isPending(string $id): bool
+    {
+        if (wp_next_scheduled(Async::HOOK, [$id]) !== false) {
+            return true;
         }
 
-        return $payload;
+        return function_exists('as_has_scheduled_action') && as_has_scheduled_action(Async::HOOK, [$id]);
     }
 }
