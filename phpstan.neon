@@ -9,6 +9,8 @@ parameters:
         # WordPress function mocks in tests
         - '#Function [a-zA-Z0-9\\_]+ not found#'
         - '#Call to undefined function [a-zA-Z0-9\\_]+#'
+        # WordPress constants in the integration suite
+        - '#Constant ABSPATH not found#'
         # Mockery related errors
         - '#Parameter \#\d+ \$[a-zA-Z0-9_]+ of class [^]]+ constructor expects [^,]+, Mockery\\(MockInterface|LegacyMockInterface)(\|[^,]+)* given.#'
         - '#Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage::[a-zA-Z0-9_]+\(\).#'

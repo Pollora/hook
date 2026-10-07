@@ -42,6 +42,7 @@
         ],
         "test:coverage": "pest --coverage",
         "test:unit": "pest --testsuite=Unit",
+        "test:wordpress": "@php -d auto_prepend_file=tests/WordPress/load.php vendor/bin/pest -c phpunit.wordpress.xml",
         "phpstan": "phpstan analyse src tests --level=5",
         "phpstan:ci": "phpstan analyse src tests --level=5 --no-progress",
         "lint": "pint",
