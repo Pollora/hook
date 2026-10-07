@@ -346,5 +346,32 @@ function wp_stub_wpdb(): object
 
             return array_slice($rows, 0, $prepared['args'][1]);
         }
+
+        /**
+         * Answers the expired-lock query: prefix, time, limit.
+         */
+        public function get_col(array $prepared): array
+        {
+            [$like, $now, $limit] = $prepared['args'];
+            $prefix = stripslashes(rtrim($like, '%'));
+            $names = [];
+
+            foreach ($GLOBALS['wp_options'] ?? [] as $name => $option) {
+                if (str_starts_with($name, $prefix) && (int) $option['value'] < $now) {
+                    $names[] = $name;
+                }
+            }
+
+            return array_slice($names, 0, $limit);
+        }
     };
+}
+
+if (! function_exists('wp_cache_delete')) {
+    function wp_cache_delete(int|string $key, string $group = ''): bool
+    {
+        $GLOBALS['wp_cache_deleted'][] = [$key, $group];
+
+        return true;
+    }
 }

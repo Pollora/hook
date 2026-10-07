@@ -30,6 +30,8 @@ final class PendingAsync
 
     private ?string $queue = null;
 
+    private ?int $uniqueFor = null;
+
     /** @var (\Closure(mixed...): array<string, mixed>)|null */
     private ?\Closure $capture = null;
 
@@ -161,6 +163,25 @@ final class PendingAsync
     }
 
     /**
+     * Merge identical triggers (same hook, same handler, same arguments) while
+     * the first one has not started running.
+     *
+     * @param  int  $for  Seconds after which the lock expires if it was never released
+     *
+     * @throws \InvalidArgumentException When $for is lower than 1
+     */
+    public function unique(int $for = 86400): self
+    {
+        if ($for < 1) {
+            throw new \InvalidArgumentException(sprintf('unique() expects a lock of at least 1 second, %d given.', $for));
+        }
+
+        $this->uniqueFor = $for;
+
+        return $this;
+    }
+
+    /**
      * Queue name: the group with Action Scheduler, the queue with a Laravel queue. WP-Cron ignores it.
      */
     public function onQueue(string $queue): self
@@ -274,6 +295,16 @@ final class PendingAsync
     public function runsAsUser(): bool
     {
         return $this->asUser;
+    }
+
+    /**
+     * @internal
+     *
+     * @return int|null Lock duration, null when the registration is not unique
+     */
+    public function uniqueFor(): ?int
+    {
+        return $this->uniqueFor;
     }
 
     /**

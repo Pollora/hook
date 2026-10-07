@@ -29,6 +29,11 @@ final class AsyncRunner
 
     public function run(AsyncPayload $payload): void
     {
+        // Identical triggers queue again from the moment the first attempt starts
+        if ($payload->uniqueKey !== null && $payload->attempt === 1) {
+            UniqueLock::release($payload->uniqueKey);
+        }
+
         try {
             $callable = $this->descriptor->resolve($payload->handler);
             $arguments = $this->normalizer->denormalize($payload->arguments, $payload->keepMissing);

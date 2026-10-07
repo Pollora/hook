@@ -8,6 +8,7 @@ use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Contracts\AsyncDriver;
 use Pollora\Hook\Async\Exceptions\AsyncException;
+use Pollora\Hook\Async\UniqueLock;
 
 /**
  * Queues through WP-Cron.
@@ -19,7 +20,8 @@ use Pollora\Hook\Async\Exceptions\AsyncException;
  * an execution as a duplicate of another scheduled within ten minutes.
  *
  * A payload whose event was lost (the 'cron' option reset, an event deleted by
- * a plugin) is found by a daily recovery task and scheduled again. Only the
+ * a plugin) is found by a daily recovery task and scheduled again; the same
+ * task deletes expired unique locks. Only the
  * process that deletes a payload runs it, so scheduling it again never runs it
  * twice.
  */
@@ -136,6 +138,8 @@ final class WpCronDriver implements AsyncDriver
                 $recovered++;
             }
         }
+
+        UniqueLock::prune();
 
         if ($recovered > 0) {
             Async::report(sprintf('WP-Cron: %d asynchronous execution(s) whose event was lost scheduled again.', $recovered));

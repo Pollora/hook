@@ -37,15 +37,29 @@ final readonly class AsyncDispatcher
             return;
         }
 
+        $uniqueKey = null;
+
         try {
             [$driverName, $driver] = $this->driverFor($handler);
+            $normalizedArguments = $this->normalizer->normalize($arguments);
+
+            $uniqueFor = $handler->options->uniqueFor();
+            if ($uniqueFor !== null) {
+                $key = UniqueLock::key($handler->hook, $handler->descriptor, $normalizedArguments);
+
+                if (! UniqueLock::acquire($key, $uniqueFor)) {
+                    return;
+                }
+
+                $uniqueKey = $key;
+            }
 
             $payload = new AsyncPayload(
                 id: AsyncPayload::newId(),
                 hook: $handler->hook,
                 handler: $handler->descriptor,
                 priority: $handler->priority,
-                arguments: $this->normalizer->normalize($arguments),
+                arguments: $normalizedArguments,
                 origin: self::origin(),
                 captured: $this->normalizer->normalize($this->capture($handler, $arguments), 'captured value'),
                 tries: $handler->options->attempts(),
@@ -54,10 +68,15 @@ final readonly class AsyncDispatcher
                 queue: $handler->options->queue(),
                 asUser: $handler->options->runsAsUser(),
                 backoff: $handler->options->backoffDelays(),
+                uniqueKey: $uniqueKey,
             );
 
             $driver->dispatch($payload, $handler->options->delayInSeconds());
         } catch (\Throwable $throwable) {
+            if ($uniqueKey !== null) {
+                UniqueLock::release($uniqueKey);
+            }
+
             if (Async::isDebug()) {
                 throw $throwable;
             }
