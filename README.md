@@ -1,6 +1,19 @@
-# Pollora Hook
+<p align="center">
+  <a href="https://pollora.dev">
+    <img src="https://raw.githubusercontent.com/Pollora/.github/main/brand/banners/hook.png" width="100%" alt="Pollora Hook: WordPress actions and filters with a clean PHP API">
+  </a>
+</p>
 
-A modern PHP package for WordPress hook (action/filter) management with callback resolution and reflection caching.
+<p align="center">
+  <a href="https://packagist.org/packages/pollora/hook"><img src="https://img.shields.io/packagist/v/pollora/hook" alt="Latest version"></a>
+  <a href="https://packagist.org/packages/pollora/hook"><img src="https://img.shields.io/packagist/dt/pollora/hook" alt="Total downloads"></a>
+  <a href="https://github.com/Pollora/hook/actions/workflows/tests.yml"><img src="https://github.com/Pollora/hook/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Pollora/hook" alt="License"></a>
+</p>
+
+A small, dependency-free PHP layer over WordPress actions and filters. It registers class-based callbacks by hook name, detects how many arguments a callback accepts, and removes hooks reliably, so you stop counting `$accepted_args` by hand and stop keeping closures around just to unhook them.
+
+> Part of [Pollora](https://pollora.dev), the Laravel framework for WordPress. In a Pollora project it is already installed: use the `#[Action]` / `#[Filter]` attributes or the `Pollora\Support\Facades\Action` / `Filter` facades instead. The standalone classes emit a notice when the framework is present.
 
 ## Installation
 
@@ -8,53 +21,71 @@ A modern PHP package for WordPress hook (action/filter) management with callback
 composer require pollora/hook
 ```
 
-## Quick Start
+Requires PHP 8.2+ and WordPress (the adapters call `add_action()`, `add_filter()` and friends).
+
+## Quick start
 
 ```php
 use Pollora\Hook\Action;
 use Pollora\Hook\Filter;
 
-$action = new Action;
-$filter = new Filter;
-
-// Register action
-$action->add('init', function () {
+Action::add('init', function (): void {
     // runs on WordPress init
 });
 
-// Register filter
-$filter->add('the_content', function (string $content): string {
-    return $content . '<p>Appended!</p>';
-});
+Filter::add('the_content', fn (string $content): string => $content.'<p>Appended!</p>');
 
-// Execute action
-$action->do('my_custom_action', $arg1, $arg2);
+Action::do('my_custom_action', $order, $user);
+$title = Filter::apply('my_title_filter', $title, $post);
 
-// Apply filter
-$filtered = $filter->apply('my_filter', $value);
-
-// Remove hook
-$action->remove('init', $callback);
+if (Action::exists('init')) {
+    Action::remove('init', $callback);
+}
 ```
 
-> **Pollora framework users:** When the framework is available, prefer the Laravel facades `Pollora\Support\Facades\Action` and `Pollora\Support\Facades\Filter` for full DI container support. A notice is emitted if you use the standalone classes within the framework.
+## What you get
 
-## Class-based Callbacks
+- **`add()`** takes one hook name or an array of them, a callback, a priority (default `10`) and an optional argument count.
+- **Argument detection**: when `$acceptedArgs` is omitted, the callback's parameters are counted through reflection, and the result is cached per callback.
+- **Class callbacks**: pass a class name and the method named after the hook is called, `wp_loaded` → `wpLoaded()`.
+- **Reliable removal**: `remove()` matches class-based callbacks by class, not only by instance, and also unhooks callbacks added outside the package (by WordPress core or a plugin).
+- **Introspection**: `exists()` and `callbacks()` list what was registered through the package.
+- **Hexagonal core**: `AbstractHook` holds the logic with no WordPress or Laravel dependency; `Adapter\Out\WordPress\Action` and `Filter` talk to WordPress.
+
+## Class-based callbacks
 
 ```php
-// Class with method matching hook name (StudlyCase convention)
-$action->add('wp_loaded', MyInitializer::class);
+Action::add('wp_loaded', MyInitializer::class);
 // Resolves to [new MyInitializer, 'wpLoaded']
+```
 
-// With dependency injection
-$action->setCallbackResolver($myResolver);
+To build those classes through a container, use the adapter directly and give it a `CallbackResolverInterface`:
+
+```php
+use Pollora\Hook\Adapter\Out\WordPress\Action;
+use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
+use Psr\Container\ContainerInterface;
+
+final class ContainerResolver implements CallbackResolverInterface
+{
+    public function __construct(private ContainerInterface $container) {}
+
+    public function resolve(string $className): object
+    {
+        return $this->container->get($className);
+    }
+}
+
+$action = new Action;
+$action->setCallbackResolver(new ContainerResolver($container));
+
 $action->add('wp_loaded', MyInitializer::class);
-// Resolves via $myResolver->resolve(MyInitializer::class)
+// MyInitializer is built by the container, then wpLoaded() is hooked
 ```
 
 ## Documentation
 
-See [docs/hooks.md](docs/hooks.md) for full documentation.
+Hooks in a Pollora project: [Actions & filters](https://pollora.dev/hooks/actions-filters/).
 
 ## Testing
 
@@ -62,6 +93,10 @@ See [docs/hooks.md](docs/hooks.md) for full documentation.
 composer test
 ```
 
+## Contributing
+
+Contributions are welcome: see the [contributing guide](https://github.com/Pollora/.github/blob/main/CONTRIBUTING.md). Report security issues privately, as described in the [security policy](https://github.com/Pollora/.github/blob/main/SECURITY.md).
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Pollora Hook is open-source software licensed under the [MIT license](LICENSE). © [RuBee group](https://rubee.group)
