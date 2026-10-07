@@ -79,6 +79,13 @@ if (! function_exists('remove_filter')) {
 if (! function_exists('apply_filters')) {
     function apply_filters(string $hook, mixed $value, mixed ...$args): mixed
     {
+        $registrations = array_filter($GLOBALS['wp_filters'] ?? [], fn (array $registration): bool => $registration['hook'] === $hook);
+        usort($registrations, fn (array $a, array $b): int => $a['priority'] <=> $b['priority']);
+
+        foreach ($registrations as $registration) {
+            $value = call_user_func_array($registration['callback'], array_slice([$value, ...$args], 0, $registration['args']));
+        }
+
         return $value;
     }
 }
@@ -215,5 +222,62 @@ if (! function_exists('restore_previous_locale')) {
         $GLOBALS['wp_switches'][] = ['restore_locale', $GLOBALS['wp_state']['locale']];
 
         return $GLOBALS['wp_state']['locale'];
+    }
+}
+
+/*
+ * Options and WP-Cron, kept in $GLOBALS['wp_options'] and $GLOBALS['wp_cron_events'].
+ * $GLOBALS['wp_fail'] lists the functions that must fail: 'add_option', 'wp_schedule_single_event'.
+ */
+
+if (! function_exists('add_option')) {
+    function add_option(string $option, mixed $value = '', string $deprecated = '', string|bool|null $autoload = null): bool
+    {
+        if (in_array('add_option', $GLOBALS['wp_fail'] ?? [], true) || isset($GLOBALS['wp_options'][$option])) {
+            return false;
+        }
+
+        $GLOBALS['wp_options'][$option] = ['value' => $value, 'autoload' => $autoload];
+
+        return true;
+    }
+}
+
+if (! function_exists('get_option')) {
+    function get_option(string $option, mixed $default = false): mixed
+    {
+        return $GLOBALS['wp_options'][$option]['value'] ?? $default;
+    }
+}
+
+if (! function_exists('delete_option')) {
+    function delete_option(string $option): bool
+    {
+        if (! isset($GLOBALS['wp_options'][$option])) {
+            return false;
+        }
+
+        unset($GLOBALS['wp_options'][$option]);
+
+        return true;
+    }
+}
+
+if (! function_exists('wp_schedule_single_event')) {
+    function wp_schedule_single_event(int $timestamp, string $hook, array $args = [], bool $wpError = false): bool|object
+    {
+        if (in_array('wp_schedule_single_event', $GLOBALS['wp_fail'] ?? [], true)) {
+            return $wpError ? new class
+            {
+                public function get_error_message(): string
+                {
+                    return 'A plugin prevented the event from being scheduled.';
+                }
+            } : false;
+        }
+
+        $GLOBALS['wp_cron_events'][] = ['timestamp' => $timestamp, 'hook' => $hook, 'args' => $args];
+
+        return true;
     }
 }

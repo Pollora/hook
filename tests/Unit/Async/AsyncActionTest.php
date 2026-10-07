@@ -23,6 +23,9 @@ beforeEach(function (): void {
     $GLOBALS['wp_async_listeners'] = [];
     $GLOBALS['wp_objects'] = [];
     $GLOBALS['wp_switches'] = [];
+    $GLOBALS['wp_options'] = [];
+    $GLOBALS['wp_cron_events'] = [];
+    $GLOBALS['wp_fail'] = [];
     $GLOBALS['wp_state'] = ['user' => 5, 'blog' => 1, 'locale' => 'fr_FR', 'multisite' => false];
     $GLOBALS['incidents'] = [];
     RecordingHandler::$calls = [];
@@ -246,8 +249,9 @@ describe('Dispatch', function (): void {
             ->and($GLOBALS['incidents'][0])->toContain("'rabbitmq' is not registered");
     });
 
-    it('runs the handler in place and reports, in production, when no driver can queue', function (): void {
+    it('runs the handler in place and reports, in production, when the driver cannot queue', function (): void {
         Async::setDebug(false);
+        $GLOBALS['wp_fail'] = ['add_option'];
         $this->action->add('save_post', [RecordingHandler::class, 'handle'])->async();
 
         wp_stub_fire('save_post', 7);
@@ -255,7 +259,7 @@ describe('Dispatch', function (): void {
         expect(RecordingHandler::$calls)->toHaveCount(1)
             ->and(RecordingHandler::$calls[0]['arguments'][0])->toBe(7)
             ->and(RecordingHandler::$calls[0]['arguments'][1])->toBeInstanceOf(AsyncContext::class)
-            ->and($GLOBALS['incidents'][0])->toContain("'wp-cron' is not registered");
+            ->and($GLOBALS['incidents'][0])->toContain("WP-Cron: the payload of 'save_post' could not be stored");
     });
 });
 

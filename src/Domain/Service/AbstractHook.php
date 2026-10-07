@@ -75,6 +75,7 @@ abstract class AbstractHook implements HookInterface
      * @param  callable|string|array  $callback  Function, closure, class name, or class@method
      * @param  int  $priority  Optional. Priority of the hook (default: 10)
      * @param  int|null  $acceptedArgs  Optional. Number of arguments the callback accepts (default: auto-detected)
+     * @return static The same instance, to chain calls such as async()
      *
      * @throws \Exception
      */
