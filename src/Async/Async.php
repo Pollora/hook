@@ -56,6 +56,8 @@ final class Async
 
     private static ?string $closureKey = null;
 
+    private static ?AsyncFake $fake = null;
+
     private static ?ArgumentNormalizer $normalizer = null;
 
     private static ?AsyncDispatcher $dispatcher = null;
@@ -87,6 +89,10 @@ final class Async
      */
     public static function driver(?string $name = null): AsyncDriver
     {
+        if (self::$fake instanceof AsyncFake) {
+            return self::$fake;
+        }
+
         $name ??= self::defaultDriver();
         $factories = self::factories();
 
@@ -101,6 +107,40 @@ final class Async
         }
 
         return $driver;
+    }
+
+    /**
+     * Record queued handlers instead of queuing them, whatever the driver. For tests.
+     */
+    public static function fake(): AsyncFake
+    {
+        return self::$fake = new AsyncFake;
+    }
+
+    /**
+     * @param  (callable(AsyncPayload, int): bool)|null  $callback  Receives the payload and its delay
+     */
+    public static function assertDispatched(string $handler, ?callable $callback = null): void
+    {
+        self::faked()->assertDispatched($handler, $callback);
+    }
+
+    public static function assertDispatchedTimes(string $handler, int $times): void
+    {
+        self::faked()->assertDispatchedTimes($handler, $times);
+    }
+
+    /**
+     * @param  (callable(AsyncPayload, int): bool)|null  $callback
+     */
+    public static function assertNotDispatched(string $handler, ?callable $callback = null): void
+    {
+        self::faked()->assertNotDispatched($handler, $callback);
+    }
+
+    public static function assertNothingDispatched(): void
+    {
+        self::faked()->assertNothingDispatched();
     }
 
     /**
@@ -315,11 +355,17 @@ final class Async
         self::$autoDrivers = ['action-scheduler', 'wp-cron'];
         self::$resolver = null;
         self::$closureKey = null;
+        self::$fake = null;
         self::$normalizer = null;
         self::$dispatcher = null;
         self::$runner = null;
         self::$debug = null;
         self::$reporter = null;
+    }
+
+    private static function faked(): AsyncFake
+    {
+        return self::$fake ?? throw new \LogicException('Call Async::fake() before asserting on dispatched handlers.');
     }
 
     /**
