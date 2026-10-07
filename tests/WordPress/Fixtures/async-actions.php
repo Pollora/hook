@@ -41,7 +41,31 @@ final class PolloraHookFixture
             'userId' => $context->userId,
             'attempt' => $context->attempt,
             'cron' => defined('DOING_CRON') && DOING_CRON,
+            'currentUser' => get_current_user_id(),
         ]);
+    }
+
+    public function captured(int $postId, WP_Post $post, AsyncContext $context): void
+    {
+        self::record('captured', [
+            'statusThen' => $context->get('statusThen'),
+            'statusNow' => $post->post_status,
+            'source' => $context->get('source'),
+        ]);
+    }
+
+    public function user(int $id, AsyncContext $context): void
+    {
+        self::record('user', [
+            'currentUser' => get_current_user_id(),
+            'canEditPosts' => current_user_can('edit_posts'),
+            'triggeredBy' => $context->userId,
+        ]);
+    }
+
+    public function counted(int $id): void
+    {
+        self::record('counted', ['id' => $id]);
     }
 
     public function large(int $id, AsyncContext $context): void
@@ -83,6 +107,18 @@ Action::add('pollora_fixture_queued', [PolloraHookFixture::class, 'event'])->asy
 Action::add('pollora_fixture_large', [PolloraHookFixture::class, 'large'])->async()
     ->capture(fn (int $id): array => ['report' => str_repeat('x', 9000)]);
 Action::add('pollora_fixture_flaky', [PolloraHookFixture::class, 'flaky'])->async()->tries(2)->backoff(0);
+
+// Phase 2 options
+Action::add('pollora_fixture_captured', [PolloraHookFixture::class, 'captured'])->async()
+    ->capture(fn (int $postId, WP_Post $post): array => [
+        'statusThen' => $post->post_status,
+        'source' => isset($_POST['acme_source']) ? sanitize_key(wp_unslash($_POST['acme_source'])) : 'admin',
+    ]);
+Action::add('pollora_fixture_when', [PolloraHookFixture::class, 'counted'])->async()
+    ->when(fn (int $postId): bool => ! wp_is_post_revision($postId));
+Action::add('pollora_fixture_unique', [PolloraHookFixture::class, 'counted'])->async()->unique();
+Action::add('pollora_fixture_user', [PolloraHookFixture::class, 'user'])->async()->asUser();
+Action::add('pollora_fixture_retried', [PolloraHookFixture::class, 'flaky'])->async()->tries(2)->backoff(0);
 
 // A closure, signed with a key derived from the WordPress salts
 $closureLabel = 'closure';
