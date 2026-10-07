@@ -7,6 +7,7 @@ namespace Pollora\Hook\Async;
 use Pollora\Hook\Async\Contracts\AsyncDriver;
 use Pollora\Hook\Async\Contracts\ObjectReference;
 use Pollora\Hook\Async\Drivers\SyncDriver;
+use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\DriverUnavailable;
 use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
 
@@ -25,11 +26,23 @@ final class Async
 
     public const string DEFAULT_DRIVER = 'wp-cron';
 
+    /**
+     * Constant that sets the default driver, in wp-config.php.
+     */
+    public const string DRIVER_CONSTANT = 'POLLORA_ASYNC_DRIVER';
+
+    /**
+     * Filter that sets the default driver, when the constant is not defined.
+     */
+    public const string DRIVER_FILTER = 'pollora/hook/async_driver';
+
     /** @var array<string, \Closure(): AsyncDriver> */
     private static array $factories = [];
 
     /** @var array<string, AsyncDriver> */
     private static array $drivers = [];
+
+    private static ?string $defaultDriver = null;
 
     private static ?CallbackResolverInterface $resolver = null;
 
@@ -81,11 +94,37 @@ final class Async
     }
 
     /**
-     * Name of the default driver.
+     * Name of the default driver, from the first of: setDefaultDriver(), the
+     * POLLORA_ASYNC_DRIVER constant, the 'pollora/hook/async_driver' filter,
+     * 'wp-cron'.
+     *
+     * 'auto' picks the best mechanism available; until the Action Scheduler
+     * driver exists, that is WP-Cron.
      */
     public static function defaultDriver(): string
     {
-        return self::DEFAULT_DRIVER;
+        $driver = self::$defaultDriver;
+
+        if ($driver === null && defined(self::DRIVER_CONSTANT) && is_string(constant(self::DRIVER_CONSTANT)) && constant(self::DRIVER_CONSTANT) !== '') {
+            $driver = constant(self::DRIVER_CONSTANT);
+        }
+
+        if ($driver === null && function_exists('apply_filters')) {
+            $filtered = apply_filters(self::DRIVER_FILTER, self::DEFAULT_DRIVER);
+            $driver = is_string($filtered) && $filtered !== '' ? $filtered : null;
+        }
+
+        $driver ??= self::DEFAULT_DRIVER;
+
+        return $driver === 'auto' ? self::DEFAULT_DRIVER : $driver;
+    }
+
+    /**
+     * Set the default driver from code, before the constant and the filter. Null to follow them again.
+     */
+    public static function setDefaultDriver(?string $driver): void
+    {
+        self::$defaultDriver = $driver;
     }
 
     /**
@@ -120,10 +159,18 @@ final class Async
     /**
      * Run a queued handler, from the message a driver hands back.
      *
-     * @param  string  $message  The payload, as JSON
+     * @param  string  $message  The payload as JSON, or the identifier of a payload the wp-cron driver stored
      */
     public static function receive(string $message): void
     {
+        if (WpCronDriver::handles($message)) {
+            $message = WpCronDriver::claim($message);
+
+            if ($message === null) {
+                return;
+            }
+        }
+
         try {
             $payload = AsyncPayload::fromJson($message);
         } catch (\Throwable $throwable) {
@@ -209,6 +256,7 @@ final class Async
     {
         self::$factories = [];
         self::$drivers = [];
+        self::$defaultDriver = null;
         self::$resolver = null;
         self::$normalizer = null;
         self::$dispatcher = null;
@@ -228,6 +276,7 @@ final class Async
     private static function factories(): array
     {
         return self::$factories + [
+            'wp-cron' => static fn (): AsyncDriver => new WpCronDriver,
             'sync' => static fn (): AsyncDriver => new SyncDriver,
         ];
     }

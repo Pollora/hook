@@ -11,7 +11,10 @@ All notable changes to `pollora/hook` are documented in this file.
   - The handler travels by name (`CallableDescriptor`), its arguments in normalized form (`ArgumentNormalizer`: WordPress objects by reference, enums, dates, `JsonSerializable`; any other object rejected), all in a versioned JSON `AsyncPayload`. A closure or an anonymous class is rejected at registration.
   - At execution the site and locale of the original request are restored. A handler that fires its own hook does not queue itself again. A failure is reported and announced through the `pollora/async/failed` action, and never stops other queued handlers.
   - When queuing fails (an argument that cannot travel, an unavailable driver), debug mode (`WP_DEBUG`, or `Async::setDebug()`) throws; otherwise the incident is reported and the handler runs in place.
-- `Async` entry point: `extend()` to register a driver, `driver()`, `reference()` to carry more object kinds, `reportUsing()` to route incidents (PHP error log by default), `setDebug()`. The internal hook `pollora/async/run` is listened to as soon as an Action service exists. `AsyncDriver` and `ObjectReference` contracts, `sync` driver.
+- `Async` entry point: `extend()` to register a driver, `driver()`, `reference()` to carry more object kinds, `reportUsing()` to route incidents (PHP error log by default), `setDebug()`. The internal hook `pollora/async/run` is listened to as soon as an Action service exists. `AsyncDriver` and `ObjectReference` contracts.
+- `wp-cron` driver, the default: the payload is stored in an option of its own, not autoloaded (`pollora_async_{id}`), and the single event carries only its identifier, so the autoloaded `cron` option stays small. The payload is deleted when its execution starts; an event that fires twice runs once.
+- `sync` driver: runs the handler in the request, after the same JSON round trip.
+- Default driver, from the first of: `Async::setDefaultDriver()`, the `POLLORA_ASYNC_DRIVER` constant, the `pollora/hook/async_driver` filter, `wp-cron`. `auto` resolves to `wp-cron` for now.
 
 ### Changed
 

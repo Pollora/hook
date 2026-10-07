@@ -50,7 +50,7 @@ it('builds a registered driver once', function (): void {
 it('names the registered drivers when one is unknown', function (): void {
     Async::extend('custom', fn (): AsyncDriver => asyncTestDriver(true));
 
-    expect(fn () => Async::driver('rabbitmq'))->toThrow(DriverUnavailable::class, 'Registered drivers: custom, sync.');
+    expect(fn () => Async::driver('rabbitmq'))->toThrow(DriverUnavailable::class, 'Registered drivers: custom, wp-cron, sync.');
 });
 
 it('refuses a driver unavailable in this request', function (): void {
@@ -93,4 +93,39 @@ it('writes incidents to the PHP error log without a reporter', function (): void
 
     expect(file_get_contents($log))->toContain('[pollora/hook] Queue unavailable {"hook":"save_post"}');
     unlink($log);
+});
+
+describe('Default driver', function (): void {
+    beforeEach(function (): void {
+        $GLOBALS['wp_filters'] = [];
+    });
+
+    it('is wp-cron', function (): void {
+        expect(Async::defaultDriver())->toBe('wp-cron');
+    });
+
+    it('follows the pollora/hook/async_driver filter', function (): void {
+        add_filter(Async::DRIVER_FILTER, fn (): string => 'action-scheduler');
+
+        expect(Async::defaultDriver())->toBe('action-scheduler');
+    });
+
+    it('ignores a filter that returns no driver name', function (): void {
+        add_filter(Async::DRIVER_FILTER, fn (): null => null);
+
+        expect(Async::defaultDriver())->toBe('wp-cron');
+    });
+
+    it('is set from code before the filter', function (): void {
+        add_filter(Async::DRIVER_FILTER, fn (): string => 'action-scheduler');
+        Async::setDefaultDriver('sync');
+
+        expect(Async::defaultDriver())->toBe('sync');
+    });
+
+    it('resolves auto to WP-Cron until another mechanism is supported', function (): void {
+        Async::setDefaultDriver('auto');
+
+        expect(Async::defaultDriver())->toBe('wp-cron');
+    });
 });
