@@ -8,6 +8,7 @@ use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncContext;
 use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Contracts\AsyncDriver;
+use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\DriverUnavailable;
 use Pollora\Hook\Async\Exceptions\UnresolvableHandler;
 use Pollora\Hook\Async\Exceptions\UnsupportedArgument;
@@ -120,13 +121,14 @@ describe('Registration', function (): void {
         expect(ActionFacade::add('save_post', [RecordingHandler::class, 'handle']))->toBeInstanceOf(Action::class);
     });
 
-    it('listens to the internal hook once, whatever the number of services', function (): void {
+    it('listens to the internal hooks once, whatever the number of services', function (): void {
         new Action;
         new Action;
 
-        expect($GLOBALS['wp_async_listeners'])->toHaveCount(1)
-            ->and($GLOBALS['wp_async_listeners'][0]['hook'])->toBe(Async::HOOK)
-            ->and($GLOBALS['wp_async_listeners'][0]['callback'])->toBe([Async::class, 'receive']);
+        expect(array_map(fn (array $listener): array => [$listener['hook'], $listener['callback']], $GLOBALS['wp_async_listeners']))->toBe([
+            [Async::HOOK, [Async::class, 'receive']],
+            [WpCronDriver::RECOVERY_HOOK, [WpCronDriver::class, 'recover']],
+        ]);
     });
 });
 

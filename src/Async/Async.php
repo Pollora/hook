@@ -145,15 +145,21 @@ final class Async
     }
 
     /**
-     * Listen to the internal hook. Safe to call more than once.
+     * Listen to the internal hooks: execution, and recovery of lost WP-Cron events. Safe to call more than once.
      */
     public static function listen(): void
     {
-        if (! function_exists('add_action') || has_action(self::HOOK, [self::class, 'receive']) !== false) {
+        if (! function_exists('add_action')) {
             return;
         }
 
-        add_action(self::HOOK, [self::class, 'receive'], 10, 1);
+        if (has_action(self::HOOK, [self::class, 'receive']) === false) {
+            add_action(self::HOOK, [self::class, 'receive'], 10, 1);
+        }
+
+        if (has_action(WpCronDriver::RECOVERY_HOOK, [WpCronDriver::class, 'recover']) === false) {
+            add_action(WpCronDriver::RECOVERY_HOOK, [WpCronDriver::class, 'recover'], 10, 0);
+        }
     }
 
     /**
