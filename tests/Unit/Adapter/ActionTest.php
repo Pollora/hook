@@ -10,27 +10,6 @@ beforeEach(function (): void {
     $GLOBALS['wp_actions_done'] = [];
 });
 
-if (! function_exists('add_action')) {
-    function add_action(string $hook, mixed $callback, int $priority = 10, int $acceptedArgs = 1): void
-    {
-        $GLOBALS['wp_actions'][] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority, 'args' => $acceptedArgs];
-    }
-}
-
-if (! function_exists('remove_action')) {
-    function remove_action(string $hook, mixed $callback, int $priority = 10): void
-    {
-        $GLOBALS['wp_actions_removed'][] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority];
-    }
-}
-
-if (! function_exists('do_action')) {
-    function do_action(string $hook, mixed ...$args): void
-    {
-        $GLOBALS['wp_actions_done'][] = ['hook' => $hook, 'args' => $args];
-    }
-}
-
 describe('WordPress Action Adapter', function (): void {
     it('registers action via WordPress add_action', function (): void {
         $action = new Action;

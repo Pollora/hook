@@ -21,7 +21,7 @@ A small, dependency-free PHP layer over WordPress actions and filters. It regist
 composer require pollora/hook
 ```
 
-Requires PHP 8.2+ and WordPress (the adapters call `add_action()`, `add_filter()` and friends).
+Requires PHP 8.3+ and WordPress (the adapters call `add_action()`, `add_filter()` and friends).
 
 ## Quick start
 
