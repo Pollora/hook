@@ -45,19 +45,21 @@ final class ArgumentNormalizer
     }
 
     /**
-     * Normalize hook arguments.
+     * Normalize hook arguments, or values captured at trigger time.
      *
-     * @param  array<int|string, mixed>  $arguments
-     * @return array<int|string, mixed> JSON-representable arguments
+     * @param  array<int|string, mixed>  $values
+     * @param  string  $kind  How a value is named in errors: "argument #2", "captured value 'status'"
+     * @return array<int|string, mixed> JSON-representable values
      *
      * @throws UnsupportedArgument When a value cannot be carried
      */
-    public function normalize(array $arguments): array
+    public function normalize(array $values, string $kind = 'argument'): array
     {
         $normalized = [];
 
-        foreach ($arguments as $position => $value) {
-            $normalized[$position] = $this->normalizeValue($value, sprintf('argument #%d', (int) $position + 1));
+        foreach ($values as $key => $value) {
+            $path = is_int($key) ? sprintf('%s #%d', $kind, $key + 1) : sprintf("%s '%s'", $kind, $key);
+            $normalized[$key] = $this->normalizeValue($value, $path);
         }
 
         return $normalized;

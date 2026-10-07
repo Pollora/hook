@@ -15,6 +15,7 @@ use Pollora\Hook\Async\Exceptions\UnsupportedArgument;
 use Pollora\Hook\Async\PendingAsync;
 use Pollora\Hook\Async\QueuedHandler;
 use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
+use Pollora\Hook\Tests\Fixtures\Async\RecordingDriver;
 use Pollora\Hook\Tests\Fixtures\Async\RecordingHandler;
 
 beforeEach(function (): void {
@@ -37,28 +38,7 @@ beforeEach(function (): void {
         $GLOBALS['incidents'][] = $message;
     });
 
-    $this->driver = new class implements AsyncDriver
-    {
-        /** @var list<array{payload: AsyncPayload, delay: int}> */
-        public array $queued = [];
-
-        public function available(): bool
-        {
-            return true;
-        }
-
-        public function dispatch(AsyncPayload $payload, int $delay = 0): void
-        {
-            $this->queued[] = ['payload' => $payload, 'delay' => $delay];
-        }
-
-        public function runAll(): void
-        {
-            foreach ($this->queued as $entry) {
-                Async::receive($entry['payload']->toJson());
-            }
-        }
-    };
+    $this->driver = new RecordingDriver;
     Async::extend('recording', fn (): AsyncDriver => $this->driver);
 
     $this->action = new Action;

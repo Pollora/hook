@@ -91,6 +91,7 @@ class Action extends AbstractHook implements ActionContract
                 registeredArgs: $registration['args'],
                 acceptedArgs: HandlerArguments::hookArgumentCount($registration['callback'], $registration['args']),
                 options: $pending,
+                defaultCapture: $this->defaultCapture($registration['callback']),
             );
 
             $this->swapCallback($queued->hook, $queued->priority, $queued->handler, $queued, $queued->acceptedArgs, $queued->handler);
@@ -115,6 +116,24 @@ class Action extends AbstractHook implements ActionContract
     protected function removeHookEvent(string $hook, callable|string|array $callback, int $priority): void
     {
         remove_action($hook, $callback, $priority);
+    }
+
+    /**
+     * The public capture() method of a handler class, used when capture() is not called.
+     *
+     * @return array{0: object, 1: 'capture'}|null
+     */
+    private function defaultCapture(callable|string|array $callback): ?array
+    {
+        if (! is_array($callback) || ! is_object($callback[0] ?? null) || ($callback[1] ?? null) === 'capture') {
+            return null;
+        }
+
+        if (! method_exists($callback[0], 'capture') || ! (new \ReflectionMethod($callback[0], 'capture'))->isPublic()) {
+            return null;
+        }
+
+        return [$callback[0], 'capture'];
     }
 
     /**

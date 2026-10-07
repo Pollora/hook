@@ -19,6 +19,7 @@ final readonly class QueuedHandler
      * @param  int  $registeredArgs  Argument count of the original registration
      * @param  int  $acceptedArgs  Hook arguments the handler takes, AsyncContext left out
      * @param  PendingAsync  $options  Options, read when the hook fires
+     * @param  callable|null  $defaultCapture  The handler class's public capture() method, used when capture() is not called
      */
     public function __construct(
         public string $hook,
@@ -28,6 +29,7 @@ final readonly class QueuedHandler
         public int $registeredArgs,
         public int $acceptedArgs,
         public PendingAsync $options,
+        public mixed $defaultCapture = null,
     ) {}
 
     public function __invoke(mixed ...$arguments): void
