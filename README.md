@@ -90,7 +90,7 @@ $action->add('wp_loaded', MyInitializer::class);
 
 ## Asynchronous actions
 
-Add `async()` after `add()` and the handler no longer runs inside the request that fires the hook: it is queued, then run later by WP-Cron.
+Add `async()` after `add()` and the handler no longer runs inside the request that fires the hook: it is queued, then run later by Action Scheduler or WP-Cron.
 
 ```php
 use Pollora\Hook\Action;
@@ -100,10 +100,10 @@ Action::add('save_post_event', [CrmSync::class, 'push'])->async();
 
 An asynchronous handler changes guarantees. Four rules to keep in mind:
 
-- **At least once, not exactly once.** A double trigger can run the handler twice: it must be safe to replay.
+- **At least once, not exactly once.** A retry or a double trigger can run the handler twice: it must be safe to replay.
 - **No guaranteed order.** Two asynchronous actions on the same hook may run in any order.
 - **A variable delay.** With WP-Cron and no system cron, the handler waits for the next visit to the site.
-- **A class or a named function, not a closure.** The handler travels by name and runs in its current version; closures are rejected.
+- **Prefer a class to a closure.** A class or a named function travels by name and runs in its current version; a closure runs as it was when queued, and needs `laravel/serializable-closure`.
 
 The handler is written as a synchronous one. It receives the hook arguments and, if it declares a parameter of that type, an `AsyncContext`:
 
@@ -114,26 +114,67 @@ final class CrmSync
 {
     public function push(int $postId, WP_Post $post, AsyncContext $context): void
     {
-        $context->userId;       // user who fired the hook
-        $context->dispatchedAt; // trigger date
+        $context->userId;          // user who fired the hook
+        $context->dispatchedAt;    // trigger date
+        $context->attempt;         // attempt number
+        $context->get('status');   // value recorded by capture()
     }
 }
 ```
 
 **Arguments.** Scalars and arrays keep their value. `WP_Post`, `WP_Term`, `WP_User` and `WP_Comment` travel as a reference and are reloaded, in their state at execution time; if one was deleted in the meantime, the handler is dropped (`keepMissing()` runs it with `null` instead). Enums and dates are rebuilt, a `JsonSerializable` object becomes its array. Any other object is refused.
 
+**Capturing values at trigger time.** At execution there is no request any more, and the content may have changed. `capture()` runs in the original request, with the hook arguments, and its values are read back through `$context->get()`. A handler class's public `capture()` method is used when `capture()` is not called. Capture an ID rather than personal data or a secret: values wait in the database.
+
+```php
+Action::add('save_post_event', [CrmSync::class, 'push'])
+    ->async()
+    ->when(fn (int $postId) => ! wp_is_post_revision($postId) && ! wp_is_post_autosave($postId))
+    ->capture(fn (int $postId, WP_Post $post) => ['status' => $post->post_status])
+    ->unique()
+    ->tries(3);
+```
+
 **Options**, chained after `async()`:
 
 | Method | Effect |
 |---|---|
 | `delay(60)` | Minimum delay, in seconds or as a `DateInterval` |
+| `when(fn (...) => bool)` | Queue only when the condition, given the hook arguments, returns `true` |
+| `capture(fn (...) => [...])` | Record values at trigger time |
+| `unique()` | Merge identical triggers (same hook, handler and arguments) until the first one runs; `unique(for: 3600)` sets how long the lock lasts if never released (a day by default) |
+| `tries(3)` | Attempts when the handler throws; `backoff([10, 60, 300])` sets the seconds before each retry (the default) |
+| `asUser()` | Run as the user who fired the hook, with that user's capabilities. Without it, there is no current user |
 | `via('sync')` | Driver for this registration |
+| `onQueue('integrations')` | Queue name: the Action Scheduler group |
 | `keepMissing()` | Run with `null` in place of a deleted object |
 | `except('save_post_page')` | Keep some hooks of the same `add()` synchronous; also `async(except: …)` |
 
-**Drivers.** `wp-cron` is the default: the payload is stored in an option that is not autoloaded and the event carries only its identifier. A daily task schedules again the payloads whose event was lost. `sync` runs the handler right away, which suits development and end-to-end tests. Choose the default with the `POLLORA_ASYNC_DRIVER` constant in `wp-config.php`, or the `pollora/hook/async_driver` filter. More drivers register through `Async::extend()`.
+**Drivers.** The default, `auto`, picks Action Scheduler when a plugin bundling it (WooCommerce, for example) is active and initialised, WP-Cron otherwise.
 
-**Failures.** At execution, the original site and locale are restored, and a handler that fires its own hook does not queue itself again. A failing handler is reported and announced through the `pollora/async/failed` action. When an action cannot be queued, `WP_DEBUG` throws; otherwise the incident goes to the PHP error log (or `Async::reportUsing()`) and the handler runs in place, so the work always happens.
+- `action-scheduler`: the payload travels in the action, the queue name becomes its group (`pollora` by default), and history shows in Tools › Scheduled Actions.
+- `wp-cron`: the payload is stored in an option that is not autoloaded and the event carries only its identifier. A daily task schedules again the payloads whose event was lost.
+- `sync`: runs the handler right away, which suits development and end-to-end tests.
+
+Choose the default with the `POLLORA_ASYNC_DRIVER` constant in `wp-config.php`, or the `pollora/hook/async_driver` filter. More drivers register through `Async::extend()`.
+
+**Closures.** With `laravel/serializable-closure` installed, a closure can be queued. It is serialized and signed with a key derived from the WordPress salts, and the signature is checked before anything is unserialized. Declare it `static` and let it use IDs rather than objects.
+
+**Failures.** At execution, the original site and locale are restored, and a handler that fires its own hook does not queue itself again. A handler that throws is retried while it has attempts left; the last failure is reported and announced through the `pollora/async/failed` action. When an action cannot be queued, `WP_DEBUG` throws; otherwise the incident goes to the PHP error log (or `Async::reportUsing()`) and the handler runs in place, so the work always happens.
+
+**Testing.** `Async::fake()` records queued handlers instead of queuing them:
+
+```php
+use Pollora\Hook\Async\Async;
+use Pollora\Hook\Async\AsyncPayload;
+
+Async::fake();
+
+wp_update_post(['ID' => $postId, 'post_title' => 'New title']);
+
+Async::assertDispatched(CrmSync::class, fn (AsyncPayload $payload) => $payload->captured['status'] === 'publish');
+Async::assertDispatchedTimes(CrmSync::class, 1);
+```
 
 ## Documentation
 

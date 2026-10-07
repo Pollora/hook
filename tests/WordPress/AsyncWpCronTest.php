@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Drivers\WpCronDriver;
+use Pollora\Hook\Async\UniqueLock;
 
 /*
  * Asynchronous actions in a real WordPress, without the framework. Queued
@@ -20,7 +21,13 @@ beforeEach(function (): void {
         "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
         $wpdb->esc_like(WpCronDriver::OPTION_PREFIX).'%',
     ));
+    $wpdb->query($wpdb->prepare(
+        "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+        $wpdb->esc_like(UniqueLock::OPTION_PREFIX).'%',
+    ));
     delete_option(PolloraHookFixture::RUNS);
+    delete_option(PolloraHookFixture::FAILURES);
+    unset($_POST['acme_source']);
     wp_unschedule_hook(Async::HOOK);
     wp_unschedule_hook(WpCronDriver::RECOVERY_HOOK);
     wp_set_current_user(0);
@@ -119,6 +126,7 @@ it('runs an asynchronous action through WP-Cron, in a WordPress without the fram
         'userId' => 1,
         'attempt' => 1,
         'cron' => true,
+        'currentUser' => 0,
     ]])
         ->and(scheduledExecutions())->toBe([])
         ->and(get_option(WpCronDriver::OPTION_PREFIX.$id))->toBeFalse();
@@ -237,4 +245,68 @@ it('records handlers with Async::fake() instead of queuing them', function (): v
     } finally {
         Async::flush();
     }
+});
+
+it('captures values at trigger time, request data included, beside the reloaded post', function (): void {
+    $_POST['acme_source'] = 'API';
+
+    do_action('pollora_fixture_captured', $this->postId, get_post($this->postId));
+    unset($_POST['acme_source']);
+    wp_update_post(['ID' => $this->postId, 'post_status' => 'draft']);
+
+    runWpCron();
+
+    expect(fixtureRuns())->toBe([['key' => 'captured', 'statusThen' => 'publish', 'statusNow' => 'draft', 'source' => 'api']]);
+});
+
+it('queues only when the condition holds', function (): void {
+    $revisionId = wp_save_post_revision($this->postId) ?: _wp_put_post_revision(get_post($this->postId));
+
+    do_action('pollora_fixture_when', $revisionId);
+    expect(scheduledExecutions())->toBe([]);
+
+    do_action('pollora_fixture_when', $this->postId);
+    expect(scheduledExecutions())->toHaveCount(1);
+});
+
+it('merges identical triggers until the first one runs', function (): void {
+    global $wpdb;
+
+    do_action('pollora_fixture_unique', 7);
+    do_action('pollora_fixture_unique', 7);
+
+    $locks = $wpdb->get_results($wpdb->prepare(
+        "SELECT autoload FROM {$wpdb->options} WHERE option_name LIKE %s",
+        $wpdb->esc_like(UniqueLock::OPTION_PREFIX).'%',
+    ));
+    expect(scheduledExecutions())->toHaveCount(1)
+        ->and($locks)->toHaveCount(1)
+        ->and($locks[0]->autoload)->toBeIn(['off', 'no']);
+
+    runWpCron();
+    do_action('pollora_fixture_unique', 7);
+
+    expect(fixtureRuns())->toBe([['key' => 'counted', 'id' => 7]])
+        ->and(scheduledExecutions())->toHaveCount(1);
+});
+
+it('runs as the user who fired the hook with asUser(), with that user\'s capabilities', function (): void {
+    wp_set_current_user(1);
+    do_action('pollora_fixture_user', 1);
+    wp_set_current_user(0);
+
+    runWpCron();
+
+    expect(fixtureRuns())->toBe([['key' => 'user', 'currentUser' => 1, 'canEditPosts' => true, 'triggeredBy' => 1]]);
+});
+
+it('retries a failing handler through WP-Cron', function (): void {
+    update_option(PolloraHookFixture::FAILURES, 1, false);
+
+    do_action('pollora_fixture_retried', 1);
+    runWpCron();
+    runWpCron();
+
+    expect(array_column(fixtureRuns(), 'attempt'))->toBe([1, 2])
+        ->and(scheduledExecutions())->toBe([]);
 });
