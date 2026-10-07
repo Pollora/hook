@@ -15,6 +15,7 @@ use Pollora\Hook\Adapter\Out\WordPress\Action as WordPressAction;
  *
  * Usage:
  *     Action::add('init', fn () => doSomething());
+ *     Action::add('save_post', SyncPostToCrm::class)->async();
  *     Action::do('my_custom_action', $arg1);
  *     Action::remove('init', $callback);
  *
@@ -31,10 +32,14 @@ class Action
      * @param  callable|string|array  $callback  Callback.
      * @param  int  $priority  Priority (default 10).
      * @param  int|null  $acceptedArgs  Argument count (auto-detected if null).
+     * @return WordPressAction The adapter, to chain calls such as async()
      */
-    public static function add(string|array $hooks, callable|string|array $callback, int $priority = 10, ?int $acceptedArgs = null): void
+    public static function add(string|array $hooks, callable|string|array $callback, int $priority = 10, ?int $acceptedArgs = null): WordPressAction
     {
-        self::getInstance()->add($hooks, $callback, $priority, $acceptedArgs);
+        $instance = self::getInstance();
+        $instance->add($hooks, $callback, $priority, $acceptedArgs);
+
+        return $instance;
     }
 
     /**

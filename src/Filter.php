@@ -31,10 +31,14 @@ class Filter
      * @param  callable|string|array  $callback  Callback.
      * @param  int  $priority  Priority (default 10).
      * @param  int|null  $acceptedArgs  Argument count (auto-detected if null).
+     * @return WordPressFilter The adapter, to chain calls
      */
-    public static function add(string|array $hooks, callable|string|array $callback, int $priority = 10, ?int $acceptedArgs = null): void
+    public static function add(string|array $hooks, callable|string|array $callback, int $priority = 10, ?int $acceptedArgs = null): WordPressFilter
     {
-        self::getInstance()->add($hooks, $callback, $priority, $acceptedArgs);
+        $instance = self::getInstance();
+        $instance->add($hooks, $callback, $priority, $acceptedArgs);
+
+        return $instance;
     }
 
     /**

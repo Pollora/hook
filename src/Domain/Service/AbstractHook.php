@@ -50,6 +50,13 @@ abstract class AbstractHook implements HookInterface
     protected ?CallbackResolverInterface $callbackResolver = null;
 
     /**
+     * Registrations made by the last add() call, one per hook.
+     *
+     * @var list<array{hook: string, callback: callable|string|array, priority: int, args: int}>
+     */
+    protected array $lastRegistrations = [];
+
+    /**
      * Set the callback resolver for dependency injection support.
      *
      * When a resolver is set, class-based callbacks are instantiated
@@ -73,9 +80,17 @@ abstract class AbstractHook implements HookInterface
      */
     public function add(string|array $hooks, callable|string|array $callback, int $priority = 10, ?int $acceptedArgs = null): self
     {
+        $this->lastRegistrations = [];
+
         foreach ((array) $hooks as $hook) {
             $resolvedCallback = $this->resolveCallback($hook, $callback, $acceptedArgs);
             $this->addHookEvent($hook, $resolvedCallback['callable'], $priority, $resolvedCallback['args']);
+            $this->lastRegistrations[] = [
+                'hook' => $hook,
+                'callback' => $resolvedCallback['callable'],
+                'priority' => $priority,
+                'args' => $resolvedCallback['args'],
+            ];
         }
 
         return $this;
@@ -112,15 +127,17 @@ abstract class AbstractHook implements HookInterface
             // Always notify subclasses to perform platform-specific unregistration
             // (e.g., WordPress remove_action/remove_filter), even for hooks not
             // registered through this class (e.g., hooks added by WooCommerce core).
-            // A [ClassName, 'method'] request targets the instance registered for it.
-            $this->removeHookEvent($hook, $this->registeredCallbackFor($hook, $callback, $priority), $priority);
+            // A request naming a handler targets the callback registered for it: the
+            // instance of a [ClassName, 'method'] pair, the queuing callback of an asynchronous handler.
+            $registeredCallback = $this->registeredCallbackFor($hook, $callback, $priority);
+            $this->removeHookEvent($hook, $registeredCallback, $priority);
 
             // Also clean up our internal tracking if we have it
             if (isset($this->hooks[$hook])) {
                 $hookCallbacks = $this->hooks[$hook];
                 $filteredCallbacks = array_values(array_filter(
                     $hookCallbacks,
-                    fn (array $item): bool => ! ($item['priority'] === $priority && $this->compareCallbacks($item['callback'], $callback))
+                    fn (array $item): bool => ! ($item['priority'] === $priority && $this->compareCallbacks($item['callback'], $registeredCallback))
                 ));
                 if ($filteredCallbacks === []) {
                     unset($this->hooks[$hook]);
@@ -371,6 +388,36 @@ abstract class AbstractHook implements HookInterface
     }
 
     /**
+     * Replace a tracked callback by another, keeping its place in the hook's list.
+     *
+     * @param  string  $hook  The hook name
+     * @param  int  $priority  The priority of the registration
+     * @param  callable|string|array  $current  The callback tracked today
+     * @param  callable|string|array  $replacement  The callback to track instead
+     * @param  int  $acceptedArgs  The argument count of the replacement
+     * @param  callable|string|array|null  $handler  The handler the replacement stands for, so remove()
+     *                                               and exists() still find it by its own callback; null for none
+     */
+    protected function replaceTrackedCallback(string $hook, int $priority, callable|string|array $current, callable|string|array $replacement, int $acceptedArgs, callable|string|array|null $handler): void
+    {
+        foreach ($this->hooks[$hook] ?? [] as $index => $item) {
+            if ($item['priority'] !== $priority || $item['callback'] !== $current) {
+                continue;
+            }
+
+            $this->hooks[$hook][$index]['callback'] = $replacement;
+            $this->hooks[$hook][$index]['args'] = $acceptedArgs;
+            unset($this->hooks[$hook][$index]['handler']);
+
+            if ($handler !== null) {
+                $this->hooks[$hook][$index]['handler'] = $handler;
+            }
+
+            return;
+        }
+    }
+
+    /**
      * Remove a single hook event.
      *
      * Override in subclasses to perform platform-specific unregistration
@@ -466,8 +513,10 @@ abstract class AbstractHook implements HookInterface
     /**
      * Find the callback registered through this class that a removal or lookup request refers to.
      *
-     * Only [ClassName, 'method'] requests for instance methods are matched, since
-     * they were registered as [$instance, 'method']; any other request is returned as is.
+     * A callback registered in place of a handler (asynchronous handlers) is found
+     * by that handler. A [ClassName, 'method'] request for an instance method is
+     * matched to the [$instance, 'method'] it was registered as. Any other request
+     * is returned as is.
      *
      * @param  string  $hook  The hook name
      * @param  callable|string|array  $callback  The requested callback
@@ -475,16 +524,18 @@ abstract class AbstractHook implements HookInterface
      */
     private function registeredCallbackFor(string $hook, callable|string|array $callback, ?int $priority = null): callable|string|array
     {
-        if (! $this->isInstanceMethodReference($callback)) {
-            return $callback;
-        }
+        $isInstanceMethodReference = $this->isInstanceMethodReference($callback);
 
         foreach ($this->hooks[$hook] ?? [] as $item) {
             if ($priority !== null && $item['priority'] !== $priority) {
                 continue;
             }
 
-            if ($this->compareCallbacks($item['callback'], $callback)) {
+            if (array_key_exists('handler', $item) && ($item['handler'] === $callback || $this->compareCallbacks($item['handler'], $callback))) {
+                return $item['callback'];
+            }
+
+            if ($isInstanceMethodReference && $this->compareCallbacks($item['callback'], $callback)) {
                 return $item['callback'];
             }
         }

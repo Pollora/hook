@@ -57,9 +57,11 @@ describe('Instance methods named by class', function (): void {
         eval(sprintf('class %s { public function handle(int $id) {} }', $className));
         $action = new Action;
         $action->add('save_post', [$className, 'handle']);
+        $registered = $GLOBALS['wp_actions'][0]['callback'];
 
         $action->remove('save_post', [$className, 'handle']);
 
-        expect($GLOBALS['wp_actions_removed'][0]['callback'])->toBe($GLOBALS['wp_actions'][0]['callback']);
+        expect($GLOBALS['wp_actions_removed'][0]['callback'])->toBe($registered)
+            ->and($GLOBALS['wp_actions'])->toBe([]);
     });
 });
