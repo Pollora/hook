@@ -162,7 +162,7 @@ Choose the default with the `POLLORA_ASYNC_DRIVER` constant in `wp-config.php`, 
 
 **Closures.** With `laravel/serializable-closure` installed, a closure can be queued. It is serialized and signed with a key derived from the WordPress salts, and the signature is checked before anything is unserialized. Declare it `static` and let it use IDs rather than objects.
 
-**Failures.** At execution, the original site and locale are restored, and a handler that fires its own hook does not queue itself again. A handler that throws is retried while it has attempts left; the last failure is reported and announced through the `pollora/async/failed` action. When an action cannot be queued, `WP_DEBUG` throws; otherwise the incident goes to the PHP error log (or `Async::reportUsing()`) and the handler runs in place, so the work always happens.
+**Failures.** At execution, the original site and locale are restored, and a handler that fires its own hook does not queue itself again. A handler that throws is retried while it has attempts left; the last failure is reported and announced through the `pollora/async/failed` action. Each handler queued is announced through `pollora/async/dispatched` (the payload and the delay), for debugging tools. When an action cannot be queued, `WP_DEBUG` throws; otherwise the incident goes to the PHP error log (or `Async::reportUsing()`) and the handler runs in place, so the work always happens.
 
 **Testing.** `Async::fake()` records queued handlers instead of queuing them:
 

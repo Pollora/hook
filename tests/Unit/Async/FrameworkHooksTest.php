@@ -192,3 +192,26 @@ describe('Throwing the final failure', function (): void {
         expect(RecordingHandler::$calls)->toBe([]);
     });
 });
+
+describe('Announcing a dispatch', function (): void {
+    it('announces each queued handler with its payload and delay', function (): void {
+        $this->action->add('save_post', [RecordingHandler::class, 'handle'])->async()->delay(30);
+
+        wp_stub_fire('save_post', 7);
+
+        $announced = array_values(array_filter($GLOBALS['wp_actions_done'], fn (array $call): bool => $call['hook'] === 'pollora/async/dispatched'));
+
+        expect($announced)->toHaveCount(1)
+            ->and($announced[0]['args'][0])->toBeInstanceOf(AsyncPayload::class)
+            ->and($announced[0]['args'][0]->hook)->toBe('save_post')
+            ->and($announced[0]['args'][1])->toBe(30);
+    });
+
+    it('announces nothing when the condition keeps the handler from being queued', function (): void {
+        $this->action->add('save_post', [RecordingHandler::class, 'handle'])->async()->when(fn (): bool => false);
+
+        wp_stub_fire('save_post', 7);
+
+        expect(array_filter($GLOBALS['wp_actions_done'], fn (array $call): bool => $call['hook'] === 'pollora/async/dispatched'))->toBe([]);
+    });
+});
