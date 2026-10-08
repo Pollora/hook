@@ -255,3 +255,28 @@ describe('Instance methods named by class', function (): void {
         expect($this->hook->callbacks('save_post'))->toBeNull();
     });
 });
+
+describe('Listing every registration', function (): void {
+    it('lists the registrations of every hook, keyed by hook name', function (): void {
+        $this->hook->add('init', 'boot_something', 5);
+        $this->hook->add(['wp_head', 'wp_footer'], 'print_something');
+
+        $all = $this->hook->all();
+
+        expect(array_keys($all))->toBe(['init', 'wp_head', 'wp_footer'])
+            ->and($all['init'][0]['callback'])->toBe('boot_something')
+            ->and($all['init'][0]['priority'])->toBe(5)
+            ->and($all['wp_footer'][0]['hook'])->toBe('wp_footer');
+    });
+
+    it('lists nothing before any registration', function (): void {
+        expect($this->hook->all())->toBe([]);
+    });
+
+    it('forgets a registration once it is removed', function (): void {
+        $this->hook->add('init', 'boot_something');
+        $this->hook->remove('init', 'boot_something');
+
+        expect($this->hook->all()['init'] ?? [])->toBe([]);
+    });
+});
