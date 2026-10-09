@@ -214,6 +214,20 @@ abstract class AbstractHook implements HookInterface
     }
 
     /**
+     * Every registration made through this instance, by hook name.
+     *
+     * WordPress's own `$wp_filter` holds the same callbacks, but no longer says
+     * who registered them: a profiler reads this to mark the ones Pollora put
+     * there, and the class and method they resolved to.
+     *
+     * @return array<string, list<array{hook: string, callback: callable|string|array, priority: int, args: int, handler?: callable|string|array}>>
+     */
+    public function all(): array
+    {
+        return $this->hooks;
+    }
+
+    /**
      * Resolve the callback for the hook.
      *
      * @param  string  $hook  The hook name

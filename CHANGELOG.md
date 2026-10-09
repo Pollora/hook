@@ -2,7 +2,12 @@
 
 All notable changes to `pollora/hook` are documented in this file.
 
-## [Unreleased]
+## [1.5.0] - 2026-10-09
+
+### Added
+
+- `AbstractHook::all()` lists every registration made through a hook instance, keyed by hook name, for debugging tools that mark Pollora's callbacks
+- The `pollora/async/dispatched` action announces each queued handler with its payload and delay
 
 ## [1.4.1] - 2026-10-07
 

@@ -72,6 +72,11 @@ final readonly class AsyncDispatcher
             );
 
             $driver->dispatch($payload, $handler->options->delayInSeconds());
+
+            // Debugging tools list what a request queued; nothing else needs it
+            if (function_exists('do_action')) {
+                do_action('pollora/async/dispatched', $payload, $handler->options->delayInSeconds());
+            }
         } catch (\Throwable $throwable) {
             if ($uniqueKey !== null) {
                 UniqueLock::release($uniqueKey);
