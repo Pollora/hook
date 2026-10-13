@@ -6,9 +6,8 @@ namespace Pollora\Hook\Async;
 
 use Pollora\Hook\Async\Contracts\AsyncDriver;
 use Pollora\Hook\Async\Contracts\ObjectReference;
-use Pollora\Hook\Async\Drivers\ActionSchedulerDriver;
+use Pollora\Hook\Async\Drivers\ScheduledDriver;
 use Pollora\Hook\Async\Drivers\SyncDriver;
-use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\DriverUnavailable;
 use Pollora\Hook\Async\Exceptions\UnresolvableHandler;
 use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
@@ -50,6 +49,8 @@ final class Async
     private static array $drivers = [];
 
     private static ?string $defaultDriver = null;
+
+    private static bool $protecting = false;
 
     /** @var list<string> Drivers 'auto' tries, in order */
     private static array $autoDrivers = ['action-scheduler', 'wp-cron'];
@@ -345,9 +346,28 @@ final class Async
             add_action(self::HOOK, [self::class, 'receive'], 10, 1);
         }
 
-        if (has_action(WpCronDriver::RECOVERY_HOOK, [WpCronDriver::class, 'recover']) === false) {
-            add_action(WpCronDriver::RECOVERY_HOOK, [WpCronDriver::class, 'recover'], 10, 0);
+        if (has_action(Recovery::HOOK, [Recovery::class, 'recover']) === false) {
+            add_action(Recovery::HOOK, [Recovery::class, 'recover'], 10, 0);
         }
+
+        // Whatever driver pollora/schedule gives the site, these events run through WP-Cron: that is what via('wp-cron') promises
+        if (function_exists('add_filter') && ! self::$protecting) {
+            self::$protecting = true;
+            add_filter('pollora/schedule/protected_hooks', [self::class, 'protectHooks']);
+        }
+    }
+
+    /**
+     * The hooks pollora/schedule keeps on WP-Cron, whatever driver the site chose.
+     *
+     * @param  array<int, string>  $hooks
+     * @return array<int, string>
+     *
+     * @internal
+     */
+    public static function protectHooks(array $hooks): array
+    {
+        return [...$hooks, self::HOOK, Recovery::HOOK];
     }
 
     /**
@@ -457,6 +477,7 @@ final class Async
         self::$factories = [];
         self::$drivers = [];
         self::$defaultDriver = null;
+        self::$protecting = false;
         self::$autoDrivers = ['action-scheduler', 'wp-cron'];
         self::$resolver = null;
         self::$closureKey = null;
@@ -503,8 +524,8 @@ final class Async
     private static function factories(): array
     {
         return self::$factories + [
-            'action-scheduler' => static fn (): AsyncDriver => new ActionSchedulerDriver,
-            'wp-cron' => static fn (): AsyncDriver => new WpCronDriver,
+            'action-scheduler' => static fn (): AsyncDriver => ScheduledDriver::actionScheduler(),
+            'wp-cron' => static fn (): AsyncDriver => ScheduledDriver::wpCron(),
             'sync' => static fn (): AsyncDriver => new SyncDriver,
         ];
     }

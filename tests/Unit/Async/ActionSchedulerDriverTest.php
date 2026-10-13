@@ -5,10 +5,10 @@ declare(strict_types=1);
 use Pollora\Hook\Adapter\Out\WordPress\Action;
 use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncPayload;
-use Pollora\Hook\Async\Drivers\ActionSchedulerDriver;
-use Pollora\Hook\Async\Drivers\WpCronDriver;
+use Pollora\Hook\Async\Drivers\ScheduledDriver;
 use Pollora\Hook\Async\Exceptions\AsyncException;
 use Pollora\Hook\Async\PayloadStore;
+use Pollora\Hook\Async\Recovery;
 use Pollora\Hook\Tests\Fixtures\Async\RecordingHandler;
 
 beforeEach(function (): void {
@@ -80,7 +80,7 @@ it('carries the payload whole in the action, in the pollora group by default', f
 
     $action = $GLOBALS['as_actions'][0];
     expect($action['hook'])->toBe(Async::HOOK)
-        ->and($action['group'])->toBe(ActionSchedulerDriver::DEFAULT_GROUP)
+        ->and($action['group'])->toBe(ScheduledDriver::DEFAULT_GROUP)
         ->and(AsyncPayload::fromJson($action['args'][0])->arguments)->toBe([42])
         ->and($GLOBALS['wp_options'])->toBe([]);
 });
@@ -120,7 +120,7 @@ it('keeps a payload too long for Action Scheduler apart and runs it once', funct
 
     expect(PayloadStore::handles($id))->toBeTrue()
         ->and($GLOBALS['wp_options'][PayloadStore::OPTION_PREFIX.$id]['autoload'])->toBeFalse()
-        ->and(wp_next_scheduled(WpCronDriver::RECOVERY_HOOK))->not->toBeFalse();
+        ->and(wp_next_scheduled(Recovery::HOOK))->not->toBeFalse();
 
     runScheduledActions();
     runScheduledActions();
@@ -137,10 +137,10 @@ it('leaves a payload kept apart alone during recovery while its action is pendin
     [$id] = $GLOBALS['as_actions'][0]['args'];
     $option = PayloadStore::OPTION_PREFIX.$id;
     $stored = json_decode($GLOBALS['wp_options'][$option]['value'], true);
-    $stored['origin']['dispatchedAt'] = gmdate(DATE_ATOM, time() - 2 * WpCronDriver::RECOVERY_GRACE);
+    $stored['origin']['dispatchedAt'] = gmdate(DATE_ATOM, time() - 2 * Recovery::GRACE);
     $GLOBALS['wp_options'][$option]['value'] = json_encode($stored);
 
-    expect(WpCronDriver::recover())->toBe(0);
+    expect(Recovery::recover())->toBe(0);
 });
 
 it('retries through Action Scheduler', function (): void {
@@ -167,5 +167,68 @@ it('fails, and forgets the payload kept apart, when Action Scheduler refuses the
 it('is unavailable without Action Scheduler', function (): void {
     $GLOBALS['as_initialized'] = false;
 
-    expect((new ActionSchedulerDriver)->available())->toBeFalse();
+    expect((ScheduledDriver::actionScheduler())->available())->toBeFalse();
+});
+
+it('keeps the shapes sites already have queued: the hook, the group, the arguments and the options', function (): void {
+    // What hook 1.x queued: work in flight must run unchanged once 2.0 is installed
+    expect(Async::HOOK)->toBe('pollora/async/run')
+        ->and(Recovery::HOOK)->toBe('pollora/async/recover')
+        ->and(PayloadStore::OPTION_PREFIX)->toBe('pollora_async_')
+        ->and(ScheduledDriver::DEFAULT_GROUP)->toBe('pollora');
+
+    $this->action->add('save_post', [RecordingHandler::class, 'handle'])->async()->via('action-scheduler');
+    wp_stub_fire('save_post', 42);
+
+    $queued = $GLOBALS['as_actions'][0];
+
+    expect($queued['hook'])->toBe('pollora/async/run')
+        ->and($queued['group'])->toBe('pollora')
+        ->and($queued['args'])->toHaveCount(1)
+        ->and(AsyncPayload::fromJson($queued['args'][0])->hook)->toBe('save_post');
+});
+
+it('runs work queued by 1.x in all three forms: an identifier kept in an option, a payload as the action argument, an identifier for a payload too long', function (): void {
+    $this->action->add('save_post', [RecordingHandler::class, 'handle'])->async()->via('wp-cron');
+    wp_stub_fire('save_post', 1);
+    $this->action->add('edit_post', [RecordingHandler::class, 'handle'])->async()->via('action-scheduler');
+    wp_stub_fire('edit_post', 2);
+
+    $cronMessage = $GLOBALS['wp_cron_events'][0]['args'][0];
+    $actionMessage = $GLOBALS['as_actions'][0]['args'][0];
+    $long = new AsyncPayload(...[...array_diff_key((array) AsyncPayload::fromJson($actionMessage), ['id' => 1]), 'id' => '11111111-2222-4333-8444-555555555555']);
+    PayloadStore::store($long);
+    $GLOBALS['wp_cron_events'] = [];
+    RecordingHandler::$calls = [];
+
+    foreach ([$cronMessage, $actionMessage, $long->id] as $message) {
+        Async::receive($message);
+    }
+
+    expect(RecordingHandler::$calls)->toHaveCount(3)
+        ->and(PayloadStore::handles($cronMessage))->toBeTrue()
+        ->and(PayloadStore::handles($actionMessage))->toBeFalse();
+});
+
+it('queues each queue name in a group of its own, and now as an async action', function (): void {
+    $this->action->add('save_post', [RecordingHandler::class, 'handle'])->async()->onQueue('crm');
+    $this->action->add('edit_post', [RecordingHandler::class, 'handle'])->async()->delay(600);
+
+    wp_stub_fire('save_post', 1);
+    wp_stub_fire('edit_post', 2);
+
+    expect(array_column($GLOBALS['as_actions'], 'group'))->toBe(['crm', 'pollora'])
+        ->and($GLOBALS['as_actions'][0]['timestamp'])->toBeLessThanOrEqual(time())
+        ->and($GLOBALS['as_actions'][1]['timestamp'])->toBeGreaterThan(time() + 590);
+});
+
+it('is not available before Action Scheduler is initialised, so auto falls back to WP-Cron', function (): void {
+    $GLOBALS['as_initialized'] = false;
+
+    expect(ScheduledDriver::actionScheduler()->available())->toBeFalse()
+        ->and(ScheduledDriver::wpCron()->available())->toBeTrue();
+});
+
+it('keeps its own events on WP-Cron, whatever driver pollora/schedule gives the site', function (): void {
+    expect(Async::protectHooks(['mine']))->toBe(['mine', 'pollora/async/run', 'pollora/async/recover']);
 });

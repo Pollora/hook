@@ -5,8 +5,10 @@ declare(strict_types=1);
 use Pollora\Hook\Adapter\Out\WordPress\Action;
 use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncPayload;
-use Pollora\Hook\Async\Drivers\WpCronDriver;
+use Pollora\Hook\Async\Drivers\ScheduledDriver;
 use Pollora\Hook\Async\Exceptions\AsyncException;
+use Pollora\Hook\Async\PayloadStore;
+use Pollora\Hook\Async\Recovery;
 use Pollora\Hook\Tests\Fixtures\Async\RecordingHandler;
 
 beforeEach(function (): void {
@@ -49,7 +51,7 @@ function executionEvents(): array
 function storeLostPayload(int $age): string
 {
     $id = AsyncPayload::newId();
-    add_option(WpCronDriver::OPTION_PREFIX.$id, (new AsyncPayload(
+    add_option(PayloadStore::OPTION_PREFIX.$id, (new AsyncPayload(
         id: $id,
         hook: 'save_post',
         handler: RecordingHandler::class.'@handle',
@@ -76,7 +78,7 @@ function runCronEvents(): void
 }
 
 it('is the default driver', function (): void {
-    expect(Async::driver())->toBeInstanceOf(WpCronDriver::class);
+    expect(Async::driver())->toBeInstanceOf(ScheduledDriver::class);
 });
 
 it('stores the payload in an option that is not autoloaded and schedules an event carrying only its identifier', function (): void {
@@ -86,11 +88,11 @@ it('stores the payload in an option that is not autoloaded and schedules an even
     expect(executionEvents())->toHaveCount(1);
     $event = executionEvents()[0];
     [$id] = $event['args'];
-    $stored = $GLOBALS['wp_options'][WpCronDriver::OPTION_PREFIX.$id];
+    $stored = $GLOBALS['wp_options'][PayloadStore::OPTION_PREFIX.$id];
 
     expect($event['hook'])->toBe(Async::HOOK)
         ->and($event['args'])->toHaveCount(1)
-        ->and(WpCronDriver::handles($id))->toBeTrue()
+        ->and(PayloadStore::handles($id))->toBeTrue()
         ->and($event['timestamp'])->toBeGreaterThanOrEqual($before)
         ->and($stored['autoload'])->toBeFalse()
         ->and(json_decode($stored['value'], true)['arguments'])->toBe([42]);
@@ -152,7 +154,7 @@ it('deletes the stored payload when the event cannot be scheduled', function ():
     $GLOBALS['wp_fail'] = ['wp_schedule_single_event'];
 
     expect(fn () => wp_stub_fire('save_post', 42))
-        ->toThrow(AsyncException::class, "the execution of 'save_post' could not be scheduled: A plugin prevented the event from being scheduled.");
+        ->toThrow(AsyncException::class, "WP-Cron: the execution of 'save_post' could not be queued: WP-Cron: the event 'pollora/async/run' could not be scheduled: A plugin prevented the event from being scheduled.");
     expect($GLOBALS['wp_options'])->toBe([]);
 });
 
@@ -161,15 +163,15 @@ describe('Recovery of lost events', function (): void {
         wp_stub_fire('save_post', 1);
         wp_stub_fire('save_post', 2);
 
-        $recovery = array_values(array_filter($GLOBALS['wp_cron_events'], fn (array $event): bool => $event['hook'] === WpCronDriver::RECOVERY_HOOK));
+        $recovery = array_values(array_filter($GLOBALS['wp_cron_events'], fn (array $event): bool => $event['hook'] === Recovery::HOOK));
         expect($recovery)->toHaveCount(1)
             ->and($recovery[0]['recurrence'])->toBe('daily');
     });
 
     it('schedules again a payload whose event was lost, and it then runs once', function (): void {
-        $id = storeLostPayload(WpCronDriver::RECOVERY_GRACE + 60);
+        $id = storeLostPayload(Recovery::GRACE + 60);
 
-        expect(WpCronDriver::recover())->toBe(1)
+        expect(Recovery::recover())->toBe(1)
             ->and(executionEvents())->toHaveCount(1)
             ->and(executionEvents()[0]['args'])->toBe([$id])
             ->and($GLOBALS['incidents'][0])->toContain('1 asynchronous execution(s) whose event was lost scheduled again');
@@ -182,8 +184,8 @@ describe('Recovery of lost events', function (): void {
     });
 
     it('runs from its WP-Cron event', function (): void {
-        storeLostPayload(WpCronDriver::RECOVERY_GRACE + 60);
-        $GLOBALS['wp_cron_events'][] = ['timestamp' => time(), 'hook' => WpCronDriver::RECOVERY_HOOK, 'args' => []];
+        storeLostPayload(Recovery::GRACE + 60);
+        $GLOBALS['wp_cron_events'][] = ['timestamp' => time(), 'hook' => Recovery::HOOK, 'args' => []];
 
         runCronEvents();
 
@@ -193,7 +195,7 @@ describe('Recovery of lost events', function (): void {
     it('leaves a recent payload alone, its event may be about to be scheduled', function (): void {
         storeLostPayload(60);
 
-        expect(WpCronDriver::recover())->toBe(0)
+        expect(Recovery::recover())->toBe(0)
             ->and(executionEvents())->toBe([]);
     });
 
@@ -201,28 +203,28 @@ describe('Recovery of lost events', function (): void {
         (new Action)->add('save_post_event', [RecordingHandler::class, 'handle'])->async()->delay(7200);
         wp_stub_fire('save_post_event', 1);
         [$id] = executionEvents()[0]['args'];
-        $stored = json_decode($GLOBALS['wp_options'][WpCronDriver::OPTION_PREFIX.$id]['value'], true);
-        $stored['origin']['dispatchedAt'] = gmdate(DATE_ATOM, time() - 2 * WpCronDriver::RECOVERY_GRACE);
-        $GLOBALS['wp_options'][WpCronDriver::OPTION_PREFIX.$id]['value'] = json_encode($stored);
+        $stored = json_decode($GLOBALS['wp_options'][PayloadStore::OPTION_PREFIX.$id]['value'], true);
+        $stored['origin']['dispatchedAt'] = gmdate(DATE_ATOM, time() - 2 * Recovery::GRACE);
+        $GLOBALS['wp_options'][PayloadStore::OPTION_PREFIX.$id]['value'] = json_encode($stored);
 
-        expect(WpCronDriver::recover())->toBe(0)
+        expect(Recovery::recover())->toBe(0)
             ->and(executionEvents())->toHaveCount(1);
     });
 
     it('deletes a stored value that is not a readable payload', function (): void {
         $id = AsyncPayload::newId();
-        add_option(WpCronDriver::OPTION_PREFIX.$id, '{"v":1}', '', false);
+        add_option(PayloadStore::OPTION_PREFIX.$id, '{"v":1}', '', false);
 
-        WpCronDriver::recover();
+        Recovery::recover();
 
         expect($GLOBALS['wp_options'])->toBe([])
             ->and($GLOBALS['incidents'][0])->toContain("unreadable payload {$id} deleted");
     });
 
     it('ignores options that only share the prefix', function (): void {
-        add_option(WpCronDriver::OPTION_PREFIX.'settings', 'kept', '', false);
+        add_option(PayloadStore::OPTION_PREFIX.'settings', 'kept', '', false);
 
-        expect(WpCronDriver::recover())->toBe(0)
-            ->and($GLOBALS['wp_options'])->toHaveKey(WpCronDriver::OPTION_PREFIX.'settings');
+        expect(Recovery::recover())->toBe(0)
+            ->and($GLOBALS['wp_options'])->toHaveKey(PayloadStore::OPTION_PREFIX.'settings');
     });
 });

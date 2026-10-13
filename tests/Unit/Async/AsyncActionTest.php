@@ -8,12 +8,12 @@ use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncContext;
 use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Contracts\AsyncDriver;
-use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\DriverUnavailable;
 use Pollora\Hook\Async\Exceptions\UnresolvableHandler;
 use Pollora\Hook\Async\Exceptions\UnsupportedArgument;
 use Pollora\Hook\Async\PendingAsync;
 use Pollora\Hook\Async\QueuedHandler;
+use Pollora\Hook\Async\Recovery;
 use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
 use Pollora\Hook\Tests\Fixtures\Async\RecordingDriver;
 use Pollora\Hook\Tests\Fixtures\Async\RecordingHandler;
@@ -141,7 +141,7 @@ describe('Registration', function (): void {
 
         expect(array_map(fn (array $listener): array => [$listener['hook'], $listener['callback']], $GLOBALS['wp_async_listeners']))->toBe([
             [Async::HOOK, [Async::class, 'receive']],
-            [WpCronDriver::RECOVERY_HOOK, [WpCronDriver::class, 'recover']],
+            [Recovery::HOOK, [Recovery::class, 'recover']],
         ]);
     });
 });
