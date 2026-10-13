@@ -2,7 +2,9 @@
 
 All notable changes to `pollora/hook` are documented in this file.
 
-## [Unreleased]
+## [2.0.0] - 2026-10-13
+
+Asynchronous actions queue through the drivers of `pollora/schedule`. Work queued by 1.x runs unchanged; the only break is the two removed driver classes below.
 
 ### Changed
 
