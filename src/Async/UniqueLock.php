@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Pollora\Hook\Async;
 
-use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\AsyncException;
 
 /**
@@ -44,7 +43,7 @@ final class UniqueLock
         $option = self::OPTION_PREFIX.$key;
         $expiresAt = time() + $seconds;
 
-        WpCronDriver::scheduleRecovery();
+        Recovery::schedule();
 
         if (add_option($option, $expiresAt, '', false)) {
             return true;

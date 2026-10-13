@@ -279,6 +279,11 @@ if (! function_exists('wp_schedule_single_event')) {
         if (in_array('wp_schedule_single_event', $GLOBALS['wp_fail'] ?? [], true)) {
             return $wpError ? new class
             {
+                public function get_error_code(): string
+                {
+                    return 'schedule_error';
+                }
+
                 public function get_error_message(): string
                 {
                     return 'A plugin prevented the event from being scheduled.';
@@ -408,6 +413,13 @@ if (! function_exists('as_schedule_single_action')) {
         $GLOBALS['as_actions'][] = ['timestamp' => $timestamp, 'hook' => $hook, 'args' => $args, 'group' => $group];
 
         return count($GLOBALS['as_actions']);
+    }
+}
+
+if (! function_exists('as_schedule_recurring_action')) {
+    function as_schedule_recurring_action(int $timestamp, int $interval, string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10): int
+    {
+        return as_schedule_single_action($timestamp, $hook, $args, $group);
     }
 }
 

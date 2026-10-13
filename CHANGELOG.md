@@ -2,6 +2,19 @@
 
 All notable changes to `pollora/hook` are documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- WP-Cron and Action Scheduler are the drivers of [`pollora/schedule`](https://github.com/Pollora/schedule), which the package now requires: `Async\Drivers\ScheduledDriver` queues through them and keeps what is the hook's own, the message an event carries and where the payload lives. Nothing changes for what is already queued: the hook, the Action Scheduler groups (`pollora` or the queue name), the identifier-only WP-Cron events and the `pollora_async_` options are the same, so work queued by 1.x runs once 2.0 is installed. `->async()`, `#[Async]`, `Async::fake()`, `via()` and their options do not change
+- `Async::listen()` keeps `pollora/async/run` and `pollora/async/recover` on WP-Cron (the `pollora/schedule/protected_hooks` filter), whatever driver the site gave pollora/schedule: `via('wp-cron')` still means WP-Cron
+- An Action Scheduler action of the hook lives in its own group and is never in the `cron` index of pollora/schedule
+
+### Removed
+
+- `Async\Drivers\WpCronDriver` and `Async\Drivers\ActionSchedulerDriver`, with no alias. Code that used them directly (the framework does not) uses `ScheduledDriver::wpCron()` and `ScheduledDriver::actionScheduler()`, or the drivers of pollora/schedule
+- `WpCronDriver::handles()` and `claim()`: use `PayloadStore`. The recovery task (`recover()`, `scheduleRecovery()`, `RECOVERY_HOOK`, `RECOVERY_GRACE`) moved to `Async\Recovery`
+
 ## [1.5.0] - 2026-10-09
 
 ### Added

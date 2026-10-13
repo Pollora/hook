@@ -6,8 +6,8 @@ use Pollora\Hook\Adapter\Out\WordPress\Action;
 use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Contracts\AsyncDriver;
-use Pollora\Hook\Async\Drivers\WpCronDriver;
 use Pollora\Hook\Async\Exceptions\AsyncException;
+use Pollora\Hook\Async\Recovery;
 use Pollora\Hook\Async\UniqueLock;
 use Pollora\Hook\Tests\Fixtures\Async\RecordingDriver;
 use Pollora\Hook\Tests\Fixtures\Async\RecordingHandler;
@@ -155,7 +155,7 @@ it('deletes expired locks during the daily maintenance', function (): void {
     add_option(UniqueLock::OPTION_PREFIX.'expired', time() - 10, '', false);
     add_option(UniqueLock::OPTION_PREFIX.'active', time() + 600, '', false);
 
-    WpCronDriver::recover();
+    Recovery::recover();
 
     expect(array_keys(uniqueLocks()))->toBe([UniqueLock::OPTION_PREFIX.'active']);
 });

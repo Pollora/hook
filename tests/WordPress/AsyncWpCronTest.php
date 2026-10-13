@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 use Pollora\Hook\Async\Async;
 use Pollora\Hook\Async\AsyncPayload;
-use Pollora\Hook\Async\Drivers\WpCronDriver;
+use Pollora\Hook\Async\PayloadStore;
+use Pollora\Hook\Async\Recovery;
 use Pollora\Hook\Async\UniqueLock;
 
 /*
@@ -19,7 +20,7 @@ beforeEach(function (): void {
 
     $wpdb->query($wpdb->prepare(
         "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-        $wpdb->esc_like(WpCronDriver::OPTION_PREFIX).'%',
+        $wpdb->esc_like(PayloadStore::OPTION_PREFIX).'%',
     ));
     $wpdb->query($wpdb->prepare(
         "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
@@ -29,7 +30,7 @@ beforeEach(function (): void {
     delete_option(PolloraHookFixture::FAILURES);
     unset($_POST['acme_source']);
     wp_unschedule_hook(Async::HOOK);
-    wp_unschedule_hook(WpCronDriver::RECOVERY_HOOK);
+    wp_unschedule_hook(Recovery::HOOK);
     wp_set_current_user(0);
     wp_cache_flush();
 
@@ -109,7 +110,7 @@ it('runs an asynchronous action through WP-Cron, in a WordPress without the fram
     [$id] = $events[0]['args'];
     $stored = $wpdb->get_row($wpdb->prepare(
         "SELECT option_value, autoload FROM {$wpdb->options} WHERE option_name = %s",
-        WpCronDriver::OPTION_PREFIX.$id,
+        PayloadStore::OPTION_PREFIX.$id,
     ));
 
     expect($events[0]['args'])->toBe([$id])
@@ -129,7 +130,7 @@ it('runs an asynchronous action through WP-Cron, in a WordPress without the fram
         'currentUser' => 0,
     ]])
         ->and(scheduledExecutions())->toBe([])
-        ->and(get_option(WpCronDriver::OPTION_PREFIX.$id))->toBeFalse();
+        ->and(get_option(PayloadStore::OPTION_PREFIX.$id))->toBeFalse();
 });
 
 it('waits for the delay before running', function (): void {
@@ -170,18 +171,18 @@ it('schedules again, then runs once, a payload whose event was lost', function (
     do_action('pollora_fixture_event', $this->postId, get_post($this->postId));
     [$id] = scheduledExecutions()[0]['args'];
 
-    expect(wp_next_scheduled(WpCronDriver::RECOVERY_HOOK))->not->toBeFalse();
+    expect(wp_next_scheduled(Recovery::HOOK))->not->toBeFalse();
 
     // The event is lost, an hour after the trigger
     wp_unschedule_hook(Async::HOOK);
-    $option = WpCronDriver::OPTION_PREFIX.$id;
+    $option = PayloadStore::OPTION_PREFIX.$id;
     $payload = json_decode(get_option($option), true);
-    $payload['origin']['dispatchedAt'] = gmdate(DATE_ATOM, time() - 2 * WpCronDriver::RECOVERY_GRACE);
+    $payload['origin']['dispatchedAt'] = gmdate(DATE_ATOM, time() - 2 * Recovery::GRACE);
     update_option($option, json_encode($payload));
 
     // The daily recovery task comes due
-    wp_unschedule_hook(WpCronDriver::RECOVERY_HOOK);
-    wp_schedule_single_event(time() - 1, WpCronDriver::RECOVERY_HOOK);
+    wp_unschedule_hook(Recovery::HOOK);
+    wp_schedule_single_event(time() - 1, Recovery::HOOK);
 
     runWpCron();
 
@@ -212,7 +213,7 @@ it('runs a closure, signed with the WordPress salts, through WP-Cron', function 
     do_action('pollora_fixture_closure', 3);
 
     [$id] = scheduledExecutions()[0]['args'];
-    expect(json_decode(get_option(WpCronDriver::OPTION_PREFIX.$id), true)['handler'])->toStartWith('closure:');
+    expect(json_decode(get_option(PayloadStore::OPTION_PREFIX.$id), true)['handler'])->toStartWith('closure:');
 
     runWpCron();
 
@@ -222,7 +223,7 @@ it('runs a closure, signed with the WordPress salts, through WP-Cron', function 
 it('refuses to run a closure whose signature does not match', function (): void {
     do_action('pollora_fixture_closure', 3);
     [$id] = scheduledExecutions()[0]['args'];
-    $option = WpCronDriver::OPTION_PREFIX.$id;
+    $option = PayloadStore::OPTION_PREFIX.$id;
     $payload = json_decode(get_option($option), true);
     $payload['handler'] = preg_replace('/^closure:[0-9a-f]{64}:/', 'closure:'.str_repeat('0', 64).':', $payload['handler']);
     update_option($option, json_encode($payload));
