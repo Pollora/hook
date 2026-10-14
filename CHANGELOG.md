@@ -2,6 +2,12 @@
 
 All notable changes to `pollora/hook` are documented in this file.
 
+## [2.0.1] - 2026-10-14
+
+### Changed
+
+- `pollora/schedule` `^1.0` is accepted alongside `^0.1.2`: the 1.0.0 of the schedule package is a stable API and no code changed. No change to this package's API
+
 ## [2.0.0] - 2026-10-13
 
 Asynchronous actions queue through the drivers of `pollora/schedule`. Work queued by 1.x runs unchanged; the only break is the two removed driver classes below.
