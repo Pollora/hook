@@ -40,7 +40,7 @@ final class PolloraHookFixture
             'title' => $post->post_title,
             'userId' => $context->userId,
             'attempt' => $context->attempt,
-            'cron' => defined('DOING_CRON') && DOING_CRON,
+            'cron' => wp_doing_cron(),
             'currentUser' => get_current_user_id(),
         ]);
     }
@@ -123,7 +123,7 @@ Action::add('pollora_fixture_retried', [PolloraHookFixture::class, 'flaky'])->as
 // A closure, signed with a key derived from the WordPress salts
 $closureLabel = 'closure';
 Action::add('pollora_fixture_closure', static function (int $id, AsyncContext $context) use ($closureLabel): void {
-    PolloraHookFixture::record($closureLabel, ['id' => $id, 'cron' => defined('DOING_CRON') && DOING_CRON]);
+    PolloraHookFixture::record($closureLabel, ['id' => $id, 'cron' => wp_doing_cron()]);
 })->async();
 unset($closureLabel);
 

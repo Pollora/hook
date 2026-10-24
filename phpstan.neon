@@ -1,3 +1,7 @@
+includes:
+    # WordPress stubs and rules: hook callback signatures, constants that have a function (DOING_CRON → wp_doing_cron())
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
 parameters:
     level: 5
     paths:
@@ -6,15 +10,9 @@ parameters:
     excludePaths:
         - vendor/*
     ignoreErrors:
-        # WordPress function mocks in tests
-        - '#Function [a-zA-Z0-9\\_]+ not found#'
-        - '#Call to undefined function [a-zA-Z0-9\\_]+#'
-        # WordPress constants in the integration suite
-        - '#Constant ABSPATH not found#'
-        # Mockery related errors
-        - '#Parameter \#\d+ \$[a-zA-Z0-9_]+ of class [^]]+ constructor expects [^,]+, Mockery\\(MockInterface|LegacyMockInterface)(\|[^,]+)* given.#'
-        - '#Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage::[a-zA-Z0-9_]+\(\).#'
+        # Action Scheduler is a plugin: its functions are not part of the WordPress stubs
+        - '#Function as_[a-z_]+ not found#'
         # Pest.php dynamic properties
-        - '#Undefined variable: \$this#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$[a-zA-Z0-9_]+.#'
-    reportUnmatchedIgnoredErrors: false
+    # Only patterns still needed are listed: report one that no longer matches, so it is removed
+    reportUnmatchedIgnoredErrors: true
