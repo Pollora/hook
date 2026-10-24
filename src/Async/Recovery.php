@@ -43,6 +43,16 @@ final class Recovery
     }
 
     /**
+     * The action callback of the daily task: an action returns nothing, recover() returns its count.
+     *
+     * @internal
+     */
+    public static function run(): void
+    {
+        self::recover();
+    }
+
+    /**
      * Schedule again the stored payloads whose event was lost.
      *
      * A payload counts as lost when no event carries its identifier and it was

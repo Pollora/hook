@@ -346,8 +346,8 @@ final class Async
             add_action(self::HOOK, [self::class, 'receive'], 10, 1);
         }
 
-        if (has_action(Recovery::HOOK, [Recovery::class, 'recover']) === false) {
-            add_action(Recovery::HOOK, [Recovery::class, 'recover'], 10, 0);
+        if (has_action(Recovery::HOOK, [Recovery::class, 'run']) === false) {
+            add_action(Recovery::HOOK, [Recovery::class, 'run'], 10, 0);
         }
 
         // Whatever driver pollora/schedule gives the site, these events run through WP-Cron: that is what via('wp-cron') promises

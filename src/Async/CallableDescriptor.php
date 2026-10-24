@@ -208,8 +208,9 @@ final readonly class CallableDescriptor
         $serialized = base64_decode($encoded, true);
 
         try {
-            // Signed by us above: the payload is the one this site queued
-            $closure = $serialized === false ? null : unserialize($serialized);
+            // Signed by us above: the payload is the one this site queued. No allowed_classes list: a closure carries
+            // the object it is bound to and the objects it uses, whose classes are only known to the code that queued it
+            $closure = $serialized === false ? null : unserialize($serialized); // nosemgrep -- HMAC-SHA256 (key derived from wp_salt()) verified with hash_equals() just above, so only a payload this site serialized reaches unserialize()
         } catch (\Throwable $throwable) {
             throw UnresolvableHandler::unreadableClosure($throwable->getMessage());
         }

@@ -141,7 +141,7 @@ describe('Registration', function (): void {
 
         expect(array_map(fn (array $listener): array => [$listener['hook'], $listener['callback']], $GLOBALS['wp_async_listeners']))->toBe([
             [Async::HOOK, [Async::class, 'receive']],
-            [Recovery::HOOK, [Recovery::class, 'recover']],
+            [Recovery::HOOK, [Recovery::class, 'run']],
         ]);
     });
 });
