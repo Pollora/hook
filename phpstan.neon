@@ -1,4 +1,5 @@
 includes:
+    - vendor/pollora/harness/presets/phpstan/base.neon
     # WordPress stubs and rules: hook callback signatures, constants that have a function (DOING_CRON → wp_doing_cron())
     - vendor/szepeviktor/phpstan-wordpress/extension.neon
 

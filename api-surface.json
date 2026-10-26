@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "surface": {
+        "hook:pollora/async/dispatched": "action",
+        "hook:pollora/async/failed": "action",
+        "hook:pollora/async/recover": "hook",
+        "hook:pollora/async/run": "hook",
+        "hook:pollora/hook/async_driver": "hook",
+        "hook:pollora/schedule/protected_hooks": "hook"
+    }
+}
