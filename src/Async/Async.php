@@ -437,7 +437,7 @@ final class Async
             return;
         }
 
-        $details = array_filter($context, fn (mixed $value): bool => is_scalar($value));
+        $details = array_filter($context, is_scalar(...));
         error_log('[pollora/hook] '.$message.($details === [] ? '' : ' '.json_encode($details)));
     }
 
@@ -524,8 +524,8 @@ final class Async
     private static function factories(): array
     {
         return self::$factories + [
-            'action-scheduler' => static fn (): AsyncDriver => ScheduledDriver::actionScheduler(),
-            'wp-cron' => static fn (): AsyncDriver => ScheduledDriver::wpCron(),
+            'action-scheduler' => ScheduledDriver::actionScheduler(...),
+            'wp-cron' => ScheduledDriver::wpCron(...),
             'sync' => static fn (): AsyncDriver => new SyncDriver,
         ];
     }

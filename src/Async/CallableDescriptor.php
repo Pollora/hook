@@ -138,7 +138,6 @@ final readonly class CallableDescriptor
             throw UnresolvableHandler::notInstantiable($className, $throwable);
         }
 
-        /** @var callable */
         return [$instance, $method];
     }
 
