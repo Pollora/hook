@@ -184,7 +184,6 @@ final class ArgumentNormalizer
             $class = \DateTimeImmutable::class;
         }
 
-        /** @var \DateTime|\DateTimeImmutable $date */
         $date = new $class((string) $value['value']);
 
         return $date->setTimezone(new \DateTimeZone((string) $value['timezone']));

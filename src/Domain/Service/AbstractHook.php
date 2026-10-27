@@ -397,9 +397,7 @@ abstract class AbstractHook implements HookInterface
         ];
 
         // Make sure the hook array exists
-        if (! isset($this->hooks[$hook])) {
-            $this->hooks[$hook] = [];
-        }
+        $this->hooks[$hook] ??= [];
 
         // Add this hook data to the array
         $this->hooks[$hook][] = $hookData;
