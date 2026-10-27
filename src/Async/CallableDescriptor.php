@@ -152,7 +152,7 @@ final readonly class CallableDescriptor
 
             return match (true) {
                 $object !== null => $this->describeMethod($object, $reflection->getName()),
-                $scope !== null => $this->describeMethod($scope->getName(), $reflection->getName()),
+                $scope instanceof \ReflectionClass => $this->describeMethod($scope->getName(), $reflection->getName()),
                 default => $this->describeString($reflection->getName()),
             };
         }
