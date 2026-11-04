@@ -7,7 +7,7 @@ namespace Pollora\Hook\Domain\Exceptions;
 /**
  * Thrown when the class of a hook callback cannot be instantiated or its method cannot be bound.
  */
-final class CallbackResolutionFailed extends HookException
+final class CallbackResolutionFailedException extends HookException
 {
     /**
      * @param  string  $className  The class of the callback
