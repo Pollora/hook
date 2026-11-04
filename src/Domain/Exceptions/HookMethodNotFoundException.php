@@ -7,7 +7,7 @@ namespace Pollora\Hook\Domain\Exceptions;
 /**
  * Thrown when a class is registered as a hook callback but has no method named after the hook.
  */
-final class HookMethodNotFound extends HookException
+final class HookMethodNotFoundException extends HookException
 {
     /**
      * @param  string  $className  The class registered as the callback

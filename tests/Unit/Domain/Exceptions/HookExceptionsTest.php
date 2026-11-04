@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
-use Pollora\Hook\Domain\Exceptions\CallbackAnalysisFailed;
-use Pollora\Hook\Domain\Exceptions\CallbackResolutionFailed;
+use Pollora\Hook\Domain\Exceptions\CallbackAnalysisFailedException;
+use Pollora\Hook\Domain\Exceptions\CallbackResolutionFailedException;
 use Pollora\Hook\Domain\Exceptions\HookException;
-use Pollora\Hook\Domain\Exceptions\HookMethodNotFound;
+use Pollora\Hook\Domain\Exceptions\HookMethodNotFoundException;
 use Pollora\Hook\Domain\Service\AbstractHook;
 
 // Concrete hook exposing argument detection (domain layer, no WordPress)
@@ -35,7 +35,7 @@ beforeEach(function (): void {
 
 describe('Named exceptions', function (): void {
     it('says which method a class needs to handle a hook', function (): void {
-        $exception = HookMethodNotFound::forMethod('App\Hooks\Sync', 'savePost');
+        $exception = HookMethodNotFoundException::forMethod('App\Hooks\Sync', 'savePost');
 
         expect($exception)->toBeInstanceOf(HookException::class)
             ->and($exception)->toBeInstanceOf(RuntimeException::class)
@@ -45,7 +45,7 @@ describe('Named exceptions', function (): void {
 
     it('chains the reason a class could not be resolved, with its code', function (): void {
         $previous = new LogicException('Container cannot build it', 42);
-        $exception = CallbackResolutionFailed::forClass('App\Hooks\Sync', $previous);
+        $exception = CallbackResolutionFailedException::forClass('App\Hooks\Sync', $previous);
 
         expect($exception)->toBeInstanceOf(HookException::class)
             ->and($exception)->toBeInstanceOf(RuntimeException::class)
@@ -57,7 +57,7 @@ describe('Named exceptions', function (): void {
 
     it('chains the reflection error of a callable it cannot analyze', function (): void {
         $previous = new ReflectionException('Method Foo::bar() does not exist', 7);
-        $exception = CallbackAnalysisFailed::fromReflection($previous);
+        $exception = CallbackAnalysisFailedException::fromReflection($previous);
 
         expect($exception)->toBeInstanceOf(HookException::class)
             ->and($exception)->toBeInstanceOf(RuntimeException::class)
@@ -76,10 +76,10 @@ describe('Thrown by the hook', function (): void {
         try {
             $this->hook->add('save_post', $className);
             $this->fail('No exception was thrown.');
-        } catch (CallbackResolutionFailed $exception) {
+        } catch (CallbackResolutionFailedException $exception) {
             expect($exception)->toBeInstanceOf(RuntimeException::class)
                 ->and($exception->getMessage())->toStartWith(sprintf("Failed to resolve '%s': Method 'savePost' not found in class '%s'.", $className, $className))
-                ->and($exception->getPrevious())->toBeInstanceOf(HookMethodNotFound::class);
+                ->and($exception->getPrevious())->toBeInstanceOf(HookMethodNotFoundException::class);
         }
     });
 
@@ -101,7 +101,7 @@ describe('Thrown by the hook', function (): void {
         try {
             $this->hook->add('save_post', [$className, 'handle']);
             $this->fail('No exception was thrown.');
-        } catch (CallbackResolutionFailed $exception) {
+        } catch (CallbackResolutionFailedException $exception) {
             expect($exception->getPrevious())->toBe($previous)
                 ->and($exception->getCode())->toBe(3)
                 ->and($exception->getMessage())->toStartWith(sprintf("Failed to resolve '%s': No binding.", $className));
@@ -110,7 +110,7 @@ describe('Thrown by the hook', function (): void {
 
     it('reports a callable whose parameters cannot be read', function (): void {
         expect(fn () => $this->hook->probeArguments([ExceptionProbeHook::class, 'missingMethod']))
-            ->toThrow(CallbackAnalysisFailed::class, 'Failed to analyze callable:');
+            ->toThrow(CallbackAnalysisFailedException::class, 'Failed to analyze callable:');
     });
 
     it('is still caught as a RuntimeException', function (): void {

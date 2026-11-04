@@ -7,7 +7,7 @@ namespace Pollora\Hook\Domain\Exceptions;
 /**
  * Thrown when reflection cannot count the parameters of a hook callback.
  */
-final class CallbackAnalysisFailed extends HookException
+final class CallbackAnalysisFailedException extends HookException
 {
     /**
      * @param  \ReflectionException  $previous  The reflection error; its code is kept

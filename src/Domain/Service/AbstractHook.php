@@ -6,9 +6,9 @@ namespace Pollora\Hook\Domain\Service;
 
 use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
 use Pollora\Hook\Domain\Contract\HookInterface;
-use Pollora\Hook\Domain\Exceptions\CallbackAnalysisFailed;
-use Pollora\Hook\Domain\Exceptions\CallbackResolutionFailed;
-use Pollora\Hook\Domain\Exceptions\HookMethodNotFound;
+use Pollora\Hook\Domain\Exceptions\CallbackAnalysisFailedException;
+use Pollora\Hook\Domain\Exceptions\CallbackResolutionFailedException;
+use Pollora\Hook\Domain\Exceptions\HookMethodNotFoundException;
 
 /**
  * Abstract base class for hook management (Domain layer, framework-agnostic).
@@ -279,7 +279,7 @@ abstract class AbstractHook implements HookInterface
      * @param  int|null  $acceptedArgs  Optional. Number of arguments (auto-detected if null)
      * @return array Resolved class method callback and argument count
      *
-     * @throws CallbackResolutionFailed When the class cannot be built or has no method named after the hook
+     * @throws CallbackResolutionFailedException When the class cannot be built or has no method named after the hook
      */
     protected function resolveClassMethodCallback(string $hook, string $className, ?int $acceptedArgs): array
     {
@@ -298,9 +298,9 @@ abstract class AbstractHook implements HookInterface
                 ];
             }
 
-            throw HookMethodNotFound::forMethod($className, $hookMethod);
+            throw HookMethodNotFoundException::forMethod($className, $hookMethod);
         } catch (\Exception $exception) {
-            throw CallbackResolutionFailed::forClass($className, $exception);
+            throw CallbackResolutionFailedException::forClass($className, $exception);
         }
     }
 
@@ -312,14 +312,14 @@ abstract class AbstractHook implements HookInterface
      * @param  int|null  $acceptedArgs  Optional. Number of arguments (auto-detected if null)
      * @return array Resolved class method callback and argument count
      *
-     * @throws CallbackResolutionFailed When the class cannot be built
+     * @throws CallbackResolutionFailedException When the class cannot be built
      */
     protected function resolveInstanceMethodCallback(string $className, string $method, ?int $acceptedArgs): array
     {
         try {
             $instance = $this->resolveInstance($className);
         } catch (\Throwable $throwable) {
-            throw CallbackResolutionFailed::forClass($className, $throwable);
+            throw CallbackResolutionFailedException::forClass($className, $throwable);
         }
 
         return [
@@ -347,7 +347,7 @@ abstract class AbstractHook implements HookInterface
      * @param  callable|array  $callback  The callable function/method
      * @return int Number of accepted arguments
      *
-     * @throws CallbackAnalysisFailed When reflection cannot read the callable
+     * @throws CallbackAnalysisFailedException When reflection cannot read the callable
      */
     protected function detectArguments(callable|array $callback): int
     {
@@ -374,7 +374,7 @@ abstract class AbstractHook implements HookInterface
 
             return $paramCount;
         } catch (\ReflectionException $reflectionException) {
-            throw CallbackAnalysisFailed::fromReflection($reflectionException);
+            throw CallbackAnalysisFailedException::fromReflection($reflectionException);
         }
     }
 

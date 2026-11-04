@@ -6,11 +6,12 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ### Changed
 
-- `AbstractHook` throws named exceptions from the new `Pollora\Hook\Domain\Exceptions` namespace instead of a bare `\RuntimeException`: `HookMethodNotFound` (a class registered without a method has no method named after the hook), `CallbackResolutionFailed` (the class of a callback cannot be built; it wraps the cause, with its code) and `CallbackAnalysisFailed` (reflection cannot read the callable). Their messages say how to fix the problem. They extend `HookException`, which extends `\RuntimeException`, so a `catch (\RuntimeException)` keeps working and the existing message prefixes (`Failed to resolve '…'`, `Method '…' not found in class '…'`, `Failed to analyze callable:`) are unchanged
+- `AbstractHook` throws named exceptions from the new `Pollora\Hook\Domain\Exceptions` namespace instead of a bare `\RuntimeException`: `HookMethodNotFoundException` (a class registered without a method has no method named after the hook), `CallbackResolutionFailedException` (the class of a callback cannot be built; it wraps the cause, with its code) and `CallbackAnalysisFailedException` (reflection cannot read the callable). Their messages say how to fix the problem. They extend `HookException`, which extends `\RuntimeException`, so a `catch (\RuntimeException)` keeps working and the existing message prefixes (`Failed to resolve '…'`, `Method '…' not found in class '…'`, `Failed to analyze callable:`) are unchanged
 - The daily recovery task is registered through `Recovery::run()`, which returns nothing as an action callback must; `Recovery::recover()` still returns the number of executions scheduled again
 
 ### Internal
 
+- The `Architecture` test suite runs `tests/Arch.php`, which the default run left out
 - PHPStan runs with `szepeviktor/phpstan-wordpress` (WordPress stubs and rules), at level 5; the ignores it makes unnecessary are removed and unmatched ignores are reported again
 - The WordPress test fixtures use `wp_doing_cron()` instead of the `DOING_CRON` constant
 - The `unserialize()` of a queued closure carries a `nosemgrep` justification: the payload's HMAC, keyed from `wp_salt()`, is checked before it is read
