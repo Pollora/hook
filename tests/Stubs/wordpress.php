@@ -123,28 +123,28 @@ if (! class_exists('WP_Comment')) {
 }
 
 if (! function_exists('get_post')) {
-    function get_post(int $id): ?WP_Post
+    function get_post(int $id): mixed
     {
         return $GLOBALS['wp_objects']['post'][$id] ?? null;
     }
 }
 
 if (! function_exists('get_term')) {
-    function get_term(int $id): ?WP_Term
+    function get_term(int $id): mixed
     {
         return $GLOBALS['wp_objects']['term'][$id] ?? null;
     }
 }
 
 if (! function_exists('get_userdata')) {
-    function get_userdata(int $id): WP_User|false
+    function get_userdata(int $id): mixed
     {
         return $GLOBALS['wp_objects']['user'][$id] ?? false;
     }
 }
 
 if (! function_exists('get_comment')) {
-    function get_comment(int $id): ?WP_Comment
+    function get_comment(int $id): mixed
     {
         return $GLOBALS['wp_objects']['comment'][$id] ?? null;
     }
@@ -247,7 +247,7 @@ if (! function_exists('add_option')) {
             return false;
         }
 
-        $GLOBALS['wp_options'][$option] = ['value' => $value, 'autoload' => $autoload];
+        $GLOBALS['wp_options'][$option] = ['value' => $value, 'autoload' => $autoload, 'deprecated' => $deprecated];
 
         return true;
     }
@@ -291,7 +291,7 @@ if (! function_exists('wp_schedule_single_event')) {
             } : false;
         }
 
-        $GLOBALS['wp_cron_events'][] = ['timestamp' => $timestamp, 'hook' => $hook, 'args' => $args];
+        $GLOBALS['wp_cron_events'][] = ['timestamp' => $timestamp, 'hook' => $hook, 'args' => $args, 'wp_error' => $wpError];
 
         return true;
     }
@@ -328,6 +328,12 @@ function wp_stub_wpdb(): object
     {
         public string $options = 'wp_options';
 
+        /** @var list<array{query: string, args: list<mixed>}> Every query prepared */
+        public array $queries = [];
+
+        /** @var list<string> The output format asked of each get_results() call */
+        public array $outputs = [];
+
         public function esc_like(string $text): string
         {
             return addcslashes($text, '_%\\');
@@ -335,11 +341,14 @@ function wp_stub_wpdb(): object
 
         public function prepare(string $query, mixed ...$args): array
         {
+            $this->queries[] = ['query' => $query, 'args' => $args];
+
             return ['query' => $query, 'args' => $args];
         }
 
         public function get_results(array $prepared, string $output): array
         {
+            $this->outputs[] = $output;
             $prefix = stripslashes(rtrim($prepared['args'][0], '%'));
             $rows = [];
 
