@@ -37,3 +37,17 @@ describe('WordPress Filter Adapter', function (): void {
         expect($result)->toBe('Hello World');
     });
 });
+
+describe('Filter tracking', function (): void {
+    it('keeps track of the filters it registers', function (): void {
+        $filter = new Filter;
+        $callback = fn (string $val): string => $val;
+
+        $filter->add('the_content', $callback, 20);
+
+        expect($filter->callbacks('the_content'))->toHaveCount(1)
+            ->and($filter->callbacks('the_content')[0]['callback'])->toBe($callback)
+            ->and($filter->callbacks('the_content')[0]['priority'])->toBe(20)
+            ->and($filter->exists('the_content', $callback))->toBeTrue();
+    });
+});
