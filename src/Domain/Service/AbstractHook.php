@@ -60,6 +60,17 @@ abstract class AbstractHook implements HookInterface
     protected array $lastRegistrations = [];
 
     /**
+     * Number of parameters of each closure, held by the closure itself.
+     *
+     * Keying a closure by its object ID would be wrong: PHP reuses the ID of a closure once it is freed, so a new
+     * closure with another signature would inherit the count of a dead one, and WordPress would pass it too few
+     * arguments (an ArgumentCountError) or too many. A WeakMap forgets an entry with its closure.
+     *
+     * @var \WeakMap<\Closure, int>|null
+     */
+    private static ?\WeakMap $closureArguments = null;
+
+    /**
      * Set the callback resolver for dependency injection support.
      *
      * When a resolver is set, class-based callbacks are instantiated
@@ -199,6 +210,7 @@ abstract class AbstractHook implements HookInterface
     public static function clearReflectionCache(): void
     {
         static::$reflectionCache = [];
+        self::$closureArguments = null;
     }
 
     /**
@@ -351,6 +363,12 @@ abstract class AbstractHook implements HookInterface
      */
     protected function detectArguments(callable|array $callback): int
     {
+        if ($callback instanceof \Closure) {
+            self::$closureArguments ??= new \WeakMap;
+
+            return self::$closureArguments[$callback] ??= $this->countParameters($callback);
+        }
+
         // Generate a unique cache key for this callback
         $cacheKey = $this->getCacheKeyForCallback($callback);
 
@@ -359,23 +377,8 @@ abstract class AbstractHook implements HookInterface
             return static::$reflectionCache[$cacheKey];
         }
 
-        try {
-            if (is_array($callback)) {
-                [$object, $method] = $callback;
-                $reflection = new \ReflectionMethod($object, $method);
-            } else {
-                $reflection = new \ReflectionFunction($callback);
-            }
-
-            $paramCount = $reflection->getNumberOfParameters();
-
-            // Cache the result for future use
-            static::$reflectionCache[$cacheKey] = $paramCount;
-
-            return $paramCount;
-        } catch (\ReflectionException $reflectionException) {
-            throw CallbackAnalysisFailedException::fromReflection($reflectionException);
-        }
+        // Cache the result for future use
+        return static::$reflectionCache[$cacheKey] = $this->countParameters($callback);
     }
 
     /**
@@ -446,6 +449,29 @@ abstract class AbstractHook implements HookInterface
     protected function removeHookEvent(string $hook, callable|string|array $callback, int $priority): void
     {
         // No-op in domain layer. Infrastructure subclasses override this.
+    }
+
+    /**
+     * Read the number of parameters of a callable with reflection.
+     *
+     * @param  callable|array  $callback  The callable function/method
+     *
+     * @throws CallbackAnalysisFailedException When reflection cannot read the callable
+     */
+    private function countParameters(callable|array $callback): int
+    {
+        try {
+            if (is_array($callback)) {
+                [$object, $method] = $callback;
+                $reflection = new \ReflectionMethod($object, $method);
+            } else {
+                $reflection = new \ReflectionFunction($callback);
+            }
+
+            return $reflection->getNumberOfParameters();
+        } catch (\ReflectionException $reflectionException) {
+            throw CallbackAnalysisFailedException::fromReflection($reflectionException);
+        }
     }
 
     /**
@@ -594,11 +620,7 @@ abstract class AbstractHook implements HookInterface
             return $callback;
         }
 
-        if ($callback instanceof \Closure) {
-            // Closures are uniquely identified by their object ID
-            return 'closure@'.spl_object_id($callback);
-        }
-
+        // Closures never reach this method: detectArguments() keys them by the closure itself.
         // Fallback for any other type of callable
         return serialize($callback);
     }
