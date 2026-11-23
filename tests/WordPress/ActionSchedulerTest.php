@@ -39,7 +39,7 @@ afterEach(function (): void {
 function runActionScheduler(): void
 {
     $script = tempnam(sys_get_temp_dir(), 'pollora-hook').'.php';
-    file_put_contents($script, sprintf("<?php\ndefine('DISABLE_WP_CRON', true);\nrequire %s;\nActionScheduler::runner()->run('WP CLI');\n", var_export(ABSPATH.'wp-load.php', true)));
+    file_put_contents($script, sprintf("<?php\nrequire %s;\nrequire %s;\nActionScheduler::runner()->run('WP CLI');\n", var_export(__DIR__.'/cron-off.php', true), var_export(ABSPATH.'wp-load.php', true)));
 
     try {
         $output = (string) shell_exec(escapeshellarg(PHP_BINARY).' '.escapeshellarg($script).' 2>&1');

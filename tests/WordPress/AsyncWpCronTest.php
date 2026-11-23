@@ -60,7 +60,7 @@ function runWpCron(): string
 function runInWordPress(string $before, string $code): string
 {
     $script = tempnam(sys_get_temp_dir(), 'pollora-hook').'.php';
-    file_put_contents($script, sprintf("<?php\n%s\ndefine('DISABLE_WP_CRON', true);\nrequire %s;\n%s\n", $before, var_export(ABSPATH.'wp-load.php', true), $code));
+    file_put_contents($script, sprintf("<?php\n%s\nrequire %s;\nrequire %s;\n%s\n", $before, var_export(__DIR__.'/cron-off.php', true), var_export(ABSPATH.'wp-load.php', true), $code));
 
     try {
         return (string) shell_exec(escapeshellarg(PHP_BINARY).' '.escapeshellarg($script).' 2>&1');

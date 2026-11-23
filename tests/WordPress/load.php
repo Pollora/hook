@@ -16,7 +16,7 @@ declare(strict_types=1);
 $wordpressPath = getenv('WP_PATH') ?: dirname(__DIR__, 2).'/.wordpress';
 
 if (! is_file($wordpressPath.'/wp-load.php')) {
-    fwrite(STDERR, "WordPress not found in {$wordpressPath}: install it there with WP-CLI (see the wordpress job of .github/workflows/tests.yml) or set WP_PATH.\n");
+    fwrite(STDERR, "WordPress not found in {$wordpressPath}: install it there with WP-CLI or set WP_PATH to a WordPress that is installed.\n");
     exit(1);
 }
 
@@ -34,7 +34,7 @@ file_put_contents($muPlugins.'/pollora-hook-fixture.php', sprintf(
 
 define('POLLORA_HOOK_TEST_PROCESS', true);
 define('WP_USE_THEMES', false);
-define('DISABLE_WP_CRON', true);
+require __DIR__.'/cron-off.php';
 
 require $wordpressPath.'/wp-load.php';
 
