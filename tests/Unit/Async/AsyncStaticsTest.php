@@ -21,6 +21,7 @@ beforeEach(function (): void {
 });
 
 afterEach(function (): void {
+    $GLOBALS['wp_filters'] = [];
     Async::flush();
 });
 

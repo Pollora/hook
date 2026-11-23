@@ -100,6 +100,10 @@ describe('Default driver', function (): void {
         $GLOBALS['wp_filters'] = [];
     });
 
+    afterEach(function (): void {
+        $GLOBALS['wp_filters'] = [];
+    });
+
     it('is wp-cron', function (): void {
         expect(Async::defaultDriver())->toBe('wp-cron');
     });
