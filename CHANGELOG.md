@@ -4,6 +4,10 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- A closure registered after another closure was freed no longer inherits that closure's argument count. The count was cached under the closure's object ID, which PHP hands to the next closure once the first is freed, so WordPress could be told to pass a callback too few arguments (an `ArgumentCountError`) or too many. The count is now held by the closure itself and goes with it.
+
 ### Changed
 
 - `AbstractHook` throws named exceptions from the new `Pollora\Hook\Domain\Exceptions` namespace instead of a bare `\RuntimeException`: `HookMethodNotFoundException` (a class registered without a method has no method named after the hook), `CallbackResolutionFailedException` (the class of a callback cannot be built; it wraps the cause, with its code) and `CallbackAnalysisFailedException` (reflection cannot read the callable). Their messages say how to fix the problem. They extend `HookException`, which extends `\RuntimeException`, so a `catch (\RuntimeException)` keeps working and the existing message prefixes (`Failed to resolve '…'`, `Method '…' not found in class '…'`, `Failed to analyze callable:`) are unchanged
@@ -11,6 +15,7 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ### Internal
 
+- The WordPress suite (`composer test:integration`, still available as `composer test:wordpress`) also covers the `Action` and `Filter` facades against WordPress's own hook tables, and no longer defines `DISABLE_WP_CRON` a second time when the installed `wp-config.php` already does
 - The `Architecture` test suite runs `tests/Arch.php`, which the default run left out
 - PHPStan runs with `szepeviktor/phpstan-wordpress` (WordPress stubs and rules), at level 5; the ignores it makes unnecessary are removed and unmatched ignores are reported again
 - The WordPress test fixtures use `wp_doing_cron()` instead of the `DOING_CRON` constant
