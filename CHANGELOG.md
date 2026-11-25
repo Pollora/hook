@@ -4,6 +4,8 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-25
+
 ### Fixed
 
 - A closure registered after another closure was freed no longer inherits that closure's argument count. The count was cached under the closure's object ID, which PHP hands to the next closure once the first is freed, so WordPress could be told to pass a callback too few arguments (an `ArgumentCountError`) or too many. The count is now held by the closure itself and goes with it.
