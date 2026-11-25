@@ -4,6 +4,10 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- An asynchronous handler whose descriptor names a private or protected method was retried as many times as `tries` allowed, each attempt failing the same way with `The handler of … is not callable`. Resolving the descriptor now fails at once with an `UnresolvableHandler` that says the method is not public.
+
 ## [2.0.2] - 2026-11-25
 
 ### Fixed

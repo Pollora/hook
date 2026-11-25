@@ -68,6 +68,11 @@ final class UnresolvableHandler extends AsyncException
         return new self(sprintf("The asynchronous handler method '%s::%s()' no longer exists.", $className, $method));
     }
 
+    public static function notPublicMethod(string $className, string $method): self
+    {
+        return new self(sprintf("The asynchronous handler method '%s::%s()' is not public: nothing outside the class can call it.", $className, $method));
+    }
+
     public static function notInstantiable(string $className, \Throwable $previous): self
     {
         return new self(sprintf("The asynchronous handler class '%s' could not be instantiated: %s", $className, $previous->getMessage()), 0, $previous);
