@@ -75,7 +75,7 @@ function fixedWpdb(mixed $rows = [], mixed $names = []): object
         }
 
         /**
-         * @return array{query: string, args: list<mixed>}
+         * @return array{query: string, args: array<int|string, mixed>}
          */
         public function prepare(string $query, mixed ...$args): array
         {
@@ -83,7 +83,7 @@ function fixedWpdb(mixed $rows = [], mixed $names = []): object
         }
 
         /**
-         * @param  array{query: string, args: list<mixed>}  $prepared
+         * @param  array{query: string, args: array<int|string, mixed>}  $prepared
          */
         public function get_results(array $prepared, string $output): mixed
         {
@@ -91,7 +91,7 @@ function fixedWpdb(mixed $rows = [], mixed $names = []): object
         }
 
         /**
-         * @param  array{query: string, args: list<mixed>}  $prepared
+         * @param  array{query: string, args: array<int|string, mixed>}  $prepared
          */
         public function get_col(array $prepared): mixed
         {
@@ -382,13 +382,13 @@ describe('Scheduled driver', function (): void {
         $lengthWith = function (int $padding): int {
             $payload = storagePayload(['arguments' => [str_repeat('a', $padding)]]);
 
-            return strlen(json_encode([$payload->toJson()]));
+            return strlen(json_encode([$payload->toJson()], JSON_THROW_ON_ERROR));
         };
         $base = $lengthWith(0);
         $atLimit = storagePayload(['arguments' => [str_repeat('a', ScheduledDriver::MAX_ARGUMENTS_LENGTH - $base)]]);
         $beyond = storagePayload(['arguments' => [str_repeat('a', ScheduledDriver::MAX_ARGUMENTS_LENGTH - $base + 1)]]);
 
-        expect(strlen(json_encode([$atLimit->toJson()])))->toBe(ScheduledDriver::MAX_ARGUMENTS_LENGTH);
+        expect(strlen(json_encode([$atLimit->toJson()], JSON_THROW_ON_ERROR)))->toBe(ScheduledDriver::MAX_ARGUMENTS_LENGTH);
 
         ScheduledDriver::actionScheduler()->dispatch($atLimit);
         ScheduledDriver::actionScheduler()->dispatch($beyond);

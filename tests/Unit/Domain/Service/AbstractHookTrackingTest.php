@@ -56,11 +56,15 @@ function trackingHook(): TrackingHook
 
 /**
  * Declare a class and return its name.
+ *
+ * @return class-string
  */
 function declareHookClass(string $body, string $extends = ''): string
 {
     $name = 'TrackingFixture_'.str_replace('.', '', uniqid('', true));
     eval(sprintf('class %s %s { %s }', $name, $extends === '' ? '' : 'extends '.$extends, $body));
+
+    assert(class_exists($name));
 
     return $name;
 }
@@ -415,9 +419,11 @@ describe('Matching a class pair to a registration', function (): void {
 
         $hook->remove('init', [$class, 'handle'], 10);
 
+        $kept = $hook->callbacks('init')[0]['callback'] ?? null;
+
         expect($hook->removed[0]['priority'])->toBe(10)
             ->and($hook->removed[0]['callback'][0])->toBeInstanceOf($class)
-            ->and($hook->removed[0]['callback'][0])->not->toBe($hook->callbacks('init')[0]['callback'][0])
+            ->and($hook->removed[0]['callback'][0])->not->toBe(is_array($kept) ? $kept[0] : null)
             ->and($hook->callbacks('init'))->toHaveCount(1)
             ->and($hook->callbacks('init')[0]['priority'])->toBe(5);
     });
@@ -480,7 +486,7 @@ describe('Replacing a tracked callback', function (): void {
 
         $callbacks = $hook->callbacks('init');
         expect($callbacks[1]['callback'])->toBe('replacement_fn')
-            ->and($callbacks[1]['handler'])->toBe('handler_fn')
+            ->and($callbacks[1]['handler'] ?? null)->toBe('handler_fn')
             ->and($callbacks[0])->not->toHaveKey('handler');
     });
 

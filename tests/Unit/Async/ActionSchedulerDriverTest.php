@@ -196,7 +196,9 @@ it('runs work queued by 1.x in all three forms: an identifier kept in an option,
 
     $cronMessage = $GLOBALS['wp_cron_events'][0]['args'][0];
     $actionMessage = $GLOBALS['as_actions'][0]['args'][0];
-    $long = new AsyncPayload(...[...array_diff_key((array) AsyncPayload::fromJson($actionMessage), ['id' => 1]), 'id' => '11111111-2222-4333-8444-555555555555']);
+    $longData = json_decode($actionMessage, true, flags: JSON_THROW_ON_ERROR);
+    $longData['id'] = '11111111-2222-4333-8444-555555555555';
+    $long = AsyncPayload::fromJson(json_encode($longData, JSON_THROW_ON_ERROR));
     PayloadStore::store($long);
     $GLOBALS['wp_cron_events'] = [];
     RecordingHandler::$calls = [];

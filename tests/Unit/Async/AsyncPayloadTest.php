@@ -80,7 +80,7 @@ it('refuses a payload with a missing or mistyped field', function (string $field
         $data[$field] = $value;
     }
 
-    expect(fn () => AsyncPayload::fromJson(json_encode($data)))->toThrow(InvalidPayload::class, "'{$reported}'");
+    expect(fn () => AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR)))->toThrow(InvalidPayload::class, "'{$reported}'");
 })->with([
     ['handler', null, 'handler'],
     ['priority', '10', 'priority'],
@@ -94,7 +94,7 @@ it('reads a payload queued by 1.2.0, without the fields added since', function (
     $data = json_decode(makeAsyncPayload()->toJson(), true);
     unset($data['driver'], $data['queue'], $data['asUser'], $data['backoff']);
 
-    $payload = AsyncPayload::fromJson(json_encode($data));
+    $payload = AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR));
 
     expect($payload->driver)->toBeNull()
         ->and($payload->queue)->toBeNull()
@@ -107,7 +107,7 @@ it('refuses an invalid backoff', function (mixed $backoff): void {
     $data = json_decode(makeAsyncPayload()->toJson(), true);
     $data['backoff'] = $backoff;
 
-    expect(fn () => AsyncPayload::fromJson(json_encode($data)))->toThrow(InvalidPayload::class, "'backoff'");
+    expect(fn () => AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR)))->toThrow(InvalidPayload::class, "'backoff'");
 })->with([
     'negative' => [[10, -5]],
     'not a list' => [['a' => 10]],

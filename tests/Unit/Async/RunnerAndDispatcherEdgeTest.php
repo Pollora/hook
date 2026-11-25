@@ -355,6 +355,8 @@ describe('The WordPress action adapter', function (): void {
         $action->setCallbackResolver($resolver);
         $action->add('init', $class);
 
-        expect($action->callbacks('init')[0]['callback'][0])->toBe($instance);
+        $registered = $action->callbacks('init')[0]['callback'] ?? null;
+
+        expect(is_array($registered) ? $registered[0] : null)->toBe($instance);
     });
 });
