@@ -78,6 +78,7 @@ final class UniqueLock
      */
     public static function prune(int $limit = 500): int
     {
+        /** @var \wpdb|null $wpdb The database, null before WordPress has loaded it */
         global $wpdb;
 
         if (! is_object($wpdb)) {
@@ -85,7 +86,7 @@ final class UniqueLock
         }
 
         $names = $wpdb->get_col($wpdb->prepare(
-            "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST(option_value AS UNSIGNED) < %d LIMIT %d",
+            "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST(option_value AS UNSIGNED) < %d LIMIT %d", // @phpstan-ignore argument.type (only the table name, which no placeholder can stand for before WordPress 6.2's %i, is interpolated; every value goes through a placeholder)
             $wpdb->esc_like(self::OPTION_PREFIX).'%',
             time(),
             $limit,
