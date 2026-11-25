@@ -35,6 +35,9 @@ afterEach(function (): void {
     unset($GLOBALS['wpdb']);
 });
 
+/**
+ * @param  array<string, mixed>  $overrides
+ */
 function storagePayload(array $overrides = []): AsyncPayload
 {
     return new AsyncPayload(...array_merge([
@@ -71,16 +74,25 @@ function fixedWpdb(mixed $rows = [], mixed $names = []): object
             return $text;
         }
 
+        /**
+         * @return array{query: string, args: list<mixed>}
+         */
         public function prepare(string $query, mixed ...$args): array
         {
             return ['query' => $query, 'args' => $args];
         }
 
+        /**
+         * @param  array{query: string, args: list<mixed>}  $prepared
+         */
         public function get_results(array $prepared, string $output): mixed
         {
             return $this->rows;
         }
 
+        /**
+         * @param  array{query: string, args: list<mixed>}  $prepared
+         */
         public function get_col(array $prepared): mixed
         {
             return $this->names;
@@ -88,6 +100,9 @@ function fixedWpdb(mixed $rows = [], mixed $names = []): object
     };
 }
 
+/**
+ * @return list<array<string, mixed>>
+ */
 function executionEventsOf(): array
 {
     return array_values(array_filter($GLOBALS['wp_cron_events'], fn (array $event): bool => $event['hook'] === Async::HOOK));
@@ -391,11 +406,13 @@ describe('Scheduled driver', function (): void {
         } catch (AsyncException $caught) {
         }
 
+        $previous = $caught?->getPrevious();
+
         expect($caught)->toBeInstanceOf(AsyncException::class)
-            ->and($caught->getMessage())->toBe("WP-Cron: the payload of 'save_post' could not be stored.")
-            ->and($caught->getCode())->toBe(0)
-            ->and($caught->getPrevious())->toBeInstanceOf(AsyncException::class)
-            ->and($caught->getPrevious()->getMessage())->toBe("The payload of 'save_post' could not be stored.");
+            ->and($caught?->getMessage())->toBe("WP-Cron: the payload of 'save_post' could not be stored.")
+            ->and($caught?->getCode())->toBe(0)
+            ->and($previous)->toBeInstanceOf(AsyncException::class)
+            ->and($previous?->getMessage())->toBe("The payload of 'save_post' could not be stored.");
     });
 
     it('never schedules an execution in the past', function (): void {

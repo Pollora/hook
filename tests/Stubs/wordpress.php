@@ -274,6 +274,9 @@ if (! function_exists('delete_option')) {
 }
 
 if (! function_exists('wp_schedule_single_event')) {
+    /**
+     * @param  array<int|string, mixed>  $args
+     */
     function wp_schedule_single_event(int $timestamp, string $hook, array $args = [], bool $wpError = false): bool|object
     {
         if (in_array('wp_schedule_single_event', $GLOBALS['wp_fail'] ?? [], true)) {
@@ -298,6 +301,9 @@ if (! function_exists('wp_schedule_single_event')) {
 }
 
 if (! function_exists('wp_schedule_event')) {
+    /**
+     * @param  array<int|string, mixed>  $args
+     */
     function wp_schedule_event(int $timestamp, string $recurrence, string $hook, array $args = []): bool
     {
         $GLOBALS['wp_cron_events'][] = ['timestamp' => $timestamp, 'hook' => $hook, 'args' => $args, 'recurrence' => $recurrence];
@@ -307,6 +313,9 @@ if (! function_exists('wp_schedule_event')) {
 }
 
 if (! function_exists('wp_next_scheduled')) {
+    /**
+     * @param  array<int|string, mixed>  $args
+     */
     function wp_next_scheduled(string $hook, array $args = []): int|false
     {
         foreach ($GLOBALS['wp_cron_events'] ?? [] as $event) {
@@ -339,6 +348,9 @@ function wp_stub_wpdb(): object
             return addcslashes($text, '_%\\');
         }
 
+        /**
+         * @return array{query: string, args: list<mixed>}
+         */
         public function prepare(string $query, mixed ...$args): array
         {
             $this->queries[] = ['query' => $query, 'args' => $args];
@@ -346,6 +358,10 @@ function wp_stub_wpdb(): object
             return ['query' => $query, 'args' => $args];
         }
 
+        /**
+         * @param  array{query: string, args: list<mixed>}  $prepared
+         * @return list<array{option_name: string, option_value: mixed}>
+         */
         public function get_results(array $prepared, string $output): array
         {
             $this->outputs[] = $output;
@@ -363,6 +379,9 @@ function wp_stub_wpdb(): object
 
         /**
          * Answers the expired-lock query: prefix, time, limit.
+         *
+         * @param  array{query: string, args: list<mixed>}  $prepared
+         * @return list<string>
          */
         public function get_col(array $prepared): array
         {
@@ -406,6 +425,9 @@ if (! class_exists('ActionScheduler', false)) {
 }
 
 if (! function_exists('as_enqueue_async_action')) {
+    /**
+     * @param  array<int|string, mixed>  $args
+     */
     function as_enqueue_async_action(string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10): int
     {
         return as_schedule_single_action(time(), $hook, $args, $group);
@@ -413,6 +435,9 @@ if (! function_exists('as_enqueue_async_action')) {
 }
 
 if (! function_exists('as_schedule_single_action')) {
+    /**
+     * @param  array<int|string, mixed>  $args
+     */
     function as_schedule_single_action(int $timestamp, string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10): int
     {
         if ($GLOBALS['as_fail'] ?? false) {
@@ -426,6 +451,9 @@ if (! function_exists('as_schedule_single_action')) {
 }
 
 if (! function_exists('as_schedule_recurring_action')) {
+    /**
+     * @param  array<int|string, mixed>  $args
+     */
     function as_schedule_recurring_action(int $timestamp, int $interval, string $hook, array $args = [], string $group = '', bool $unique = false, int $priority = 10): int
     {
         return as_schedule_single_action($timestamp, $hook, $args, $group);
@@ -433,6 +461,9 @@ if (! function_exists('as_schedule_recurring_action')) {
 }
 
 if (! function_exists('as_has_scheduled_action')) {
+    /**
+     * @param  array<int|string, mixed>|null  $args
+     */
     function as_has_scheduled_action(string $hook, ?array $args = null, string $group = ''): bool
     {
         foreach ($GLOBALS['as_actions'] ?? [] as $action) {

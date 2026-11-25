@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Pollora\Hook\Async\AsyncPayload;
 use Pollora\Hook\Async\Exceptions\InvalidPayload;
 
+/**
+ * @param  array<string, mixed>  $overrides
+ */
 function makeAsyncPayload(array $overrides = []): AsyncPayload
 {
     return new AsyncPayload(...array_merge([

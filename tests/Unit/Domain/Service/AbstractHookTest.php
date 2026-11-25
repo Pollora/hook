@@ -19,6 +19,10 @@ class TestableHook extends AbstractHook
     }
 
     // Expose protected methods for testing
+    /**
+     * @param  callable|string|array<array-key, mixed>  $callback
+     * @return array{callable: callable|string|array<array-key, mixed>, args: int}
+     */
     public function testResolveCallback(string $hook, callable|string|array $callback, ?int $acceptedArgs = null): array
     {
         return $this->resolveCallback($hook, $callback, $acceptedArgs);
@@ -138,6 +142,9 @@ describe('P2 — Remove hooks not registered through Pollora', function (): void
         // Use a testable subclass that tracks removeHookEvent calls
         $hook = new class extends AbstractHook
         {
+            /**
+             * @var list<array{hook: string, callback: callable|string|array<array-key, mixed>, priority: int}>
+             */
             public array $removedEvents = [];
 
             public function do(string $hook, mixed ...$args): self
@@ -150,6 +157,9 @@ describe('P2 — Remove hooks not registered through Pollora', function (): void
                 return $value;
             }
 
+            /**
+             * @param  callable|string|array<array-key, mixed>  $callback
+             */
             protected function removeHookEvent(string $hook, callable|string|array $callback, int $priority): void
             {
                 $this->removedEvents[] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority];
@@ -168,6 +178,9 @@ describe('P2 — Remove hooks not registered through Pollora', function (): void
     it('also cleans internal tracking when hook was registered through Pollora', function (): void {
         $hook = new class extends AbstractHook
         {
+            /**
+             * @var list<array{hook: string, callback: callable|string|array<array-key, mixed>, priority: int}>
+             */
             public array $removedEvents = [];
 
             public function do(string $hook, mixed ...$args): self
@@ -180,6 +193,9 @@ describe('P2 — Remove hooks not registered through Pollora', function (): void
                 return $value;
             }
 
+            /**
+             * @param  callable|string|array<array-key, mixed>  $callback
+             */
             protected function removeHookEvent(string $hook, callable|string|array $callback, int $priority): void
             {
                 $this->removedEvents[] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority];

@@ -44,6 +44,9 @@ function edgeQueued(PendingAsync $pending, string $hook, string $descriptor = 'p
     return $queued;
 }
 
+/**
+ * @param  list<mixed>  $arguments
+ */
 function edgeAsyncPayload(string $handler, array $arguments = [1]): AsyncPayload
 {
     return new AsyncPayload(
@@ -285,6 +288,9 @@ describe('HandlerArguments', function (): void {
     it('hands the hook arguments of a callable it cannot reflect as a list', function (): void {
         $callable = new class
         {
+            /**
+             * @param  list<mixed>  $arguments
+             */
             public function __call(string $name, array $arguments): void {}
         };
 

@@ -35,6 +35,9 @@ afterEach(function (): void {
     Async::flush();
 });
 
+/**
+ * @return list<array<string, mixed>>
+ */
 function failedAnnouncements(): array
 {
     return array_values(array_filter($GLOBALS['wp_actions_done'], fn (array $call): bool => $call['hook'] === 'pollora/async/failed'));
