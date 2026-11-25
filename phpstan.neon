@@ -3,16 +3,17 @@ includes:
     - vendor/pollora/harness/presets/phpstan/base.neon
 
 parameters:
-    level: 5
+    level: 6
     paths:
         - src
         - tests
+    universalObjectCratesClasses:
+        # Pest tests keep their fixtures in dynamic properties of $this (beforeEach): mixed, not an error type that expect() cannot resolve
+        - PHPUnit\Framework\TestCase
     excludePaths:
         - vendor/*
     ignoreErrors:
         # Action Scheduler is a plugin: its functions are not part of the WordPress stubs
         - '#Function as_[a-z_]+ not found#'
-        # Pest.php dynamic properties
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$[a-zA-Z0-9_]+.#'
     # Only patterns still needed are listed: report one that no longer matches, so it is removed
     reportUnmatchedIgnoredErrors: true
