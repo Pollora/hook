@@ -464,6 +464,13 @@ abstract class AbstractHook implements HookInterface
             if (is_array($callback)) {
                 [$object, $method] = $callback;
                 $reflection = new \ReflectionMethod($object, $method);
+            } elseif (is_string($callback) && str_contains($callback, '::')) {
+                // A static method written 'Class::method' is not a function name
+                [$class, $staticMethod] = explode('::', $callback, 2);
+                $reflection = new \ReflectionMethod($class, $staticMethod);
+            } elseif (is_object($callback) && ! $callback instanceof \Closure) {
+                // An invokable object: its __invoke() method is what WordPress calls
+                $reflection = new \ReflectionMethod($callback, '__invoke');
             } else {
                 $reflection = new \ReflectionFunction($callback);
             }
@@ -621,6 +628,10 @@ abstract class AbstractHook implements HookInterface
         }
 
         // Closures never reach this method: detectArguments() keys them by the closure itself.
+        if (is_object($callback)) {
+            return $callback::class.'::__invoke@'.spl_object_id($callback);
+        }
+
         // Fallback for any other type of callable
         return serialize($callback);
     }

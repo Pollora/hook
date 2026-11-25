@@ -4,6 +4,10 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Registering an invokable object (`Action::add('init', new Handler)`) without an argument count threw a `TypeError`, and a static method written as a string (`'Handler::run'`) threw `CallbackAnalysisFailedException`: the parameters were counted with `ReflectionFunction`, which reads neither. They are now read from the object's `__invoke()` and from the named static method.
+
 ## [2.0.2] - 2026-11-25
 
 ### Fixed
