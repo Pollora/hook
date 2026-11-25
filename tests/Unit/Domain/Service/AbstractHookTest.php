@@ -34,6 +34,27 @@ beforeEach(function (): void {
     AbstractHook::clearReflectionCache();
 });
 
+final class InvokableProbe
+{
+    public function __invoke(string $a, int $b): void {}
+
+    public static function staticProbe(string $a, int $b, int $c): void {}
+}
+
+describe('Argument detection', function (): void {
+    it('counts the parameters of an invokable object through its __invoke()', function (): void {
+        $this->hook->add('init', new InvokableProbe);
+
+        expect($this->hook->callbacks('init')[0]['args'])->toBe(2);
+    });
+
+    it('counts the parameters of a static method written Class::method', function (): void {
+        $this->hook->add('init', InvokableProbe::class.'::staticProbe');
+
+        expect($this->hook->callbacks('init')[0]['args'])->toBe(3);
+    });
+});
+
 describe('P0 — Permissive callback resolution', function (): void {
     it('stores a string callback that is not yet callable without throwing', function (): void {
         $this->hook->add('init', 'my_future_function');
