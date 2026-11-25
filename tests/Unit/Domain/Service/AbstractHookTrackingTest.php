@@ -84,8 +84,8 @@ describe('Removing tracked callbacks', function (): void {
 
         $callbacks = $hook->callbacks('init') ?? [];
         expect(array_keys($callbacks))->toBe([0, 1])
-            ->and($callbacks[0]['callback'])->toBe('second_fn')
-            ->and($callbacks[1]['callback'])->toBe('third_fn');
+            ->and(($callbacks[0]['callback'] ?? null))->toBe('second_fn')
+            ->and(($callbacks[1]['callback'] ?? null))->toBe('third_fn');
     });
 
     it('removes only the registration at the requested priority', function (): void {
@@ -97,7 +97,7 @@ describe('Removing tracked callbacks', function (): void {
 
         $callbacks = $hook->callbacks('init');
         expect($callbacks)->toHaveCount(1)
-            ->and($callbacks[0]['priority'])->toBe(5);
+            ->and(($callbacks[0]['priority'] ?? null))->toBe(5);
     });
 
     it('removes only the requested callback at a priority shared by several', function (): void {
@@ -109,7 +109,7 @@ describe('Removing tracked callbacks', function (): void {
 
         $callbacks = $hook->callbacks('init');
         expect($callbacks)->toHaveCount(1)
-            ->and($callbacks[0]['callback'])->toBe('two_fn');
+            ->and(($callbacks[0]['callback'] ?? null))->toBe('two_fn');
     });
 
     it('returns false when the hook it is asked to remove without a callback is unknown', function (): void {
@@ -188,7 +188,7 @@ describe('Accepted arguments', function (): void {
         $hook = trackingHook();
         $hook->add('init', fn (int $a, int $b): int => $a + $b, 10, 1);
 
-        expect($hook->callbacks('init')[0]['args'])->toBe(1);
+        expect(registrationAt($hook, 'init', 0)['args'])->toBe(1);
     });
 
     it('keeps the argument count asked for a class name', function (): void {
@@ -196,7 +196,7 @@ describe('Accepted arguments', function (): void {
         $hook = trackingHook();
         $hook->add('init_hook', $class, 10, 1);
 
-        expect($hook->callbacks('init_hook')[0]['args'])->toBe(1);
+        expect(registrationAt($hook, 'init_hook', 0)['args'])->toBe(1);
     });
 
     it('detects the argument count of a class name method', function (): void {
@@ -204,7 +204,7 @@ describe('Accepted arguments', function (): void {
         $hook = trackingHook();
         $hook->add('init_hook', $class);
 
-        expect($hook->callbacks('init_hook')[0]['args'])->toBe(3);
+        expect(registrationAt($hook, 'init_hook', 0)['args'])->toBe(3);
     });
 
     it('keeps the argument count asked for an instance method pair', function (): void {
@@ -212,7 +212,7 @@ describe('Accepted arguments', function (): void {
         $hook = trackingHook();
         $hook->add('init', [$class, 'handle'], 10, 1);
 
-        expect($hook->callbacks('init')[0]['args'])->toBe(1);
+        expect(registrationAt($hook, 'init', 0)['args'])->toBe(1);
     });
 
     it('detects the argument count of an instance method pair', function (): void {
@@ -220,7 +220,7 @@ describe('Accepted arguments', function (): void {
         $hook = trackingHook();
         $hook->add('init', [$class, 'handle']);
 
-        expect($hook->callbacks('init')[0]['args'])->toBe(3);
+        expect(registrationAt($hook, 'init', 0)['args'])->toBe(3);
     });
 });
 
@@ -383,7 +383,7 @@ describe('Matching a class pair to a registration', function (): void {
         $hook = trackingHook();
         $hook->add('init', [$object, 'handle']);
 
-        expect($hook->callbacks('init')[0]['callback'])->toBe([$object, 'handle'])
+        expect(registrationAt($hook, 'init', 0)['callback'])->toBe([$object, 'handle'])
             ->and($hook->exists('init', [$object, 'handle']))->toBeTrue();
     });
 
@@ -392,8 +392,8 @@ describe('Matching a class pair to a registration', function (): void {
         $hook = trackingHook();
         $hook->add('init', [$class, 'missing']);
 
-        expect($hook->callbacks('init')[0]['callback'])->toBe([$class, 'missing'])
-            ->and($hook->callbacks('init')[0]['args'])->toBe(1);
+        expect(registrationAt($hook, 'init', 0)['callback'])->toBe([$class, 'missing'])
+            ->and(registrationAt($hook, 'init', 0)['args'])->toBe(1);
     });
 
     it('leaves a pair with a method that is not a string for later', function (): void {
@@ -401,14 +401,14 @@ describe('Matching a class pair to a registration', function (): void {
         $hook = trackingHook();
         $hook->add('init', [$class, 5]);
 
-        expect($hook->callbacks('init')[0]['callback'])->toBe([$class, 5]);
+        expect(registrationAt($hook, 'init', 0)['callback'])->toBe([$class, 5]);
     });
 
     it('leaves a pair naming a missing class for later', function (): void {
         $hook = trackingHook();
         $hook->add('init', ['Missing\\Class\\Here', 'handle']);
 
-        expect($hook->callbacks('init')[0]['callback'])->toBe(['Missing\\Class\\Here', 'handle']);
+        expect(registrationAt($hook, 'init', 0)['callback'])->toBe(['Missing\\Class\\Here', 'handle']);
     });
 
     it('prefers the registration of the requested priority', function (): void {
@@ -419,13 +419,13 @@ describe('Matching a class pair to a registration', function (): void {
 
         $hook->remove('init', [$class, 'handle'], 10);
 
-        $kept = $hook->callbacks('init')[0]['callback'] ?? null;
+        $kept = registrationAt($hook, 'init', 0)['callback'] ?? null;
 
         expect($hook->removed[0]['priority'])->toBe(10)
             ->and($hook->removed[0]['callback'][0])->toBeInstanceOf($class)
             ->and($hook->removed[0]['callback'][0])->not->toBe(is_array($kept) ? $kept[0] : null)
             ->and($hook->callbacks('init'))->toHaveCount(1)
-            ->and($hook->callbacks('init')[0]['priority'])->toBe(5);
+            ->and(registrationAt($hook, 'init', 0)['priority'])->toBe(5);
     });
 
     it('finds the instance of a pair even when a closure comes first', function (): void {
@@ -439,7 +439,7 @@ describe('Matching a class pair to a registration', function (): void {
 
         expect($hook->removed[0]['callback'][0])->toBeInstanceOf($class)
             ->and($hook->callbacks('init'))->toHaveCount(1)
-            ->and($hook->callbacks('init')[0]['callback'])->toBe($closure);
+            ->and(registrationAt($hook, 'init', 0)['callback'])->toBe($closure);
     });
 });
 
@@ -453,10 +453,10 @@ describe('Replacing a tracked callback', function (): void {
         $hook->replace('init', 20, 'a_fn', 'replacement_fn', 3, null);
 
         $callbacks = $hook->callbacks('init');
-        expect($callbacks[0]['callback'])->toBe('a_fn')
-            ->and($callbacks[1]['callback'])->toBe('b_fn')
-            ->and($callbacks[2]['callback'])->toBe('replacement_fn')
-            ->and($callbacks[2]['args'])->toBe(3);
+        expect(($callbacks[0]['callback'] ?? null))->toBe('a_fn')
+            ->and(($callbacks[1]['callback'] ?? null))->toBe('b_fn')
+            ->and(($callbacks[2]['callback'] ?? null))->toBe('replacement_fn')
+            ->and(($callbacks[2]['args'] ?? null))->toBe(3);
     });
 
     it('does not replace a callback registered at another priority', function (): void {
@@ -465,7 +465,7 @@ describe('Replacing a tracked callback', function (): void {
 
         $hook->replace('init', 20, 'a_fn', 'replacement_fn', 3, null);
 
-        expect($hook->callbacks('init')[0]['callback'])->toBe('a_fn');
+        expect(registrationAt($hook, 'init', 0)['callback'])->toBe('a_fn');
     });
 
     it('does not replace another callback at the same priority', function (): void {
@@ -474,7 +474,7 @@ describe('Replacing a tracked callback', function (): void {
 
         $hook->replace('init', 10, 'b_fn', 'replacement_fn', 3, null);
 
-        expect($hook->callbacks('init')[0]['callback'])->toBe('a_fn');
+        expect(registrationAt($hook, 'init', 0)['callback'])->toBe('a_fn');
     });
 
     it('finds the registration after one that does not match', function (): void {
@@ -485,9 +485,9 @@ describe('Replacing a tracked callback', function (): void {
         $hook->replace('init', 10, 'target_fn', 'replacement_fn', 2, 'handler_fn');
 
         $callbacks = $hook->callbacks('init');
-        expect($callbacks[1]['callback'])->toBe('replacement_fn')
-            ->and($callbacks[1]['handler'] ?? null)->toBe('handler_fn')
-            ->and($callbacks[0])->not->toHaveKey('handler');
+        expect(($callbacks[1]['callback'] ?? null))->toBe('replacement_fn')
+            ->and(($callbacks[1]['handler'] ?? null) ?? null)->toBe('handler_fn')
+            ->and(($callbacks[0] ?? []))->not->toHaveKey('handler');
     });
 
     it('forgets the handler when replaced with none', function (): void {
@@ -497,7 +497,7 @@ describe('Replacing a tracked callback', function (): void {
 
         $hook->replace('init', 10, 'queued_fn', 'target_fn', 1, null);
 
-        expect($hook->callbacks('init')[0])->not->toHaveKey('handler');
+        expect(registrationAt($hook, 'init', 0))->not->toHaveKey('handler');
     });
 
     it('finds a registration by the handler it stands for', function (): void {

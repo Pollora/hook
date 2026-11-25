@@ -306,7 +306,8 @@ abstract class AbstractHook implements HookInterface
             $instance = $this->resolveInstance($className);
 
             // Prepare the method name (similar to Laravel's Str::studly but without dependency)
-            $hook = preg_replace('/[^a-zA-Z0-9_]+/', '_', $hook);
+            // A PCRE failure returns null: keep the name as it is, which no method will match
+            $hook = preg_replace('/[^a-zA-Z0-9_]+/', '_', $hook) ?? $hook;
             $hookMethod = lcfirst($this->studly($hook));
 
             // If the method exists, return the callable

@@ -46,8 +46,8 @@ describe('Filter tracking', function (): void {
         $filter->add('the_content', $callback, 20);
 
         expect($filter->callbacks('the_content'))->toHaveCount(1)
-            ->and($filter->callbacks('the_content')[0]['callback'])->toBe($callback)
-            ->and($filter->callbacks('the_content')[0]['priority'])->toBe(20)
+            ->and(registrationAt($filter, 'the_content', 0)['callback'])->toBe($callback)
+            ->and(registrationAt($filter, 'the_content', 0)['priority'])->toBe(20)
             ->and($filter->exists('the_content', $callback))->toBeTrue();
     });
 });

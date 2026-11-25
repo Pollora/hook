@@ -44,7 +44,7 @@ it('counts the arguments of a closure that takes the object ID of a freed one', 
     $hook = closureCountingHook();
     $hook->add('pollora_reused', function (string $first, string $second, string $third): void {});
 
-    expect($hook->callbacks('pollora_reused')[0]['args'])->toBe(3);
+    expect(registrationAt($hook, 'pollora_reused', 0)['args'])->toBe(3);
 });
 
 it('counts again the arguments of a closure that replaces a freed one with another signature', function (): void {
@@ -59,7 +59,7 @@ it('counts again the arguments of a closure that replaces a freed one with anoth
             3 => function (string $a, string $b, string $c): void {},
         };
         $hook->add('pollora_loop', $closure);
-        $counts[] = $hook->callbacks('pollora_loop')[0]['args'];
+        $counts[] = registrationAt($hook, 'pollora_loop', 0)['args'];
         unset($hook, $closure);
     }
 
@@ -73,6 +73,6 @@ it('keeps the count of a closure that is still alive', function (): void {
     $hook->add('pollora_alive', $closure);
     $hook->add('pollora_alive_again', $closure);
 
-    expect($hook->callbacks('pollora_alive')[0]['args'])->toBe(2)
-        ->and($hook->callbacks('pollora_alive_again')[0]['args'])->toBe(2);
+    expect(registrationAt($hook, 'pollora_alive', 0)['args'])->toBe(2)
+        ->and(registrationAt($hook, 'pollora_alive_again', 0)['args'])->toBe(2);
 });
