@@ -21,7 +21,7 @@ final class QueuedHandler
      * @param  int  $registeredArgs  Argument count of the original registration
      * @param  int  $acceptedArgs  Hook arguments the handler takes, AsyncContext left out
      * @param  PendingAsync  $options  Options, read when the hook fires
-     * @param  callable|null  $defaultCapture  The handler class's public capture() method, used when capture() is not called
+     * @param  callable|array{object, string}|null  $defaultCapture  The handler class's public capture() method, used when capture() is not called
      */
     public function __construct(
         public readonly string $hook,

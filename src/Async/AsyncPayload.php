@@ -25,7 +25,7 @@ final readonly class AsyncPayload
      * @param  int  $priority  Priority of the registration
      * @param  array<int|string, mixed>  $arguments  Normalized hook arguments, see ArgumentNormalizer
      * @param  array{userId: int, blogId: int, locale: string, dispatchedAt: string}  $origin  Request that fired the hook
-     * @param  array<string, mixed>  $captured  Normalized values recorded at trigger time
+     * @param  array<int|string, mixed>  $captured  Normalized values recorded at trigger time
      * @param  int  $attempt  Attempt number, from 1
      * @param  int  $tries  Number of attempts allowed
      * @param  bool  $keepMissing  Run with null in place of a referenced object that no longer exists
@@ -163,7 +163,7 @@ final readonly class AsyncPayload
     /**
      * The context handed to the handler, with the captured values rebuilt.
      *
-     * @param  array<string, mixed>  $captured  Denormalized captured values
+     * @param  array<int|string, mixed>  $captured  Denormalized captured values
      */
     public function context(array $captured = []): AsyncContext
     {
