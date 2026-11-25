@@ -6,6 +6,7 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ### Fixed
 
+- An asynchronous handler whose descriptor names a private or protected method was retried as many times as `tries` allowed, each attempt failing the same way with `The handler of … is not callable`. Resolving the descriptor now fails at once with an `UnresolvableHandler` that says the method is not public.
 - Registering an invokable object (`Action::add('init', new Handler)`) without an argument count threw a `TypeError`, and a static method written as a string (`'Handler::run'`) threw `CallbackAnalysisFailedException`: the parameters were counted with `ReflectionFunction`, which reads neither. They are now read from the object's `__invoke()` and from the named static method.
 
 ## [2.0.2] - 2026-11-25

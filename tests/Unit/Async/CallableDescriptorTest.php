@@ -12,6 +12,14 @@ if (! function_exists('pollora_test_async_handler')) {
     function pollora_test_async_handler(int $postId): void {}
 }
 
+/**
+ * A class whose method exists but cannot be called from outside.
+ */
+final class HiddenMethodHandler
+{
+    protected function hidden(): void {}
+}
+
 beforeEach(function (): void {
     $this->descriptor = new CallableDescriptor;
 });
@@ -164,6 +172,11 @@ describe('resolve()', function (): void {
         'class' => ['App\Removed@handle', "'App\Removed' no longer exists"],
         'method' => [InvoiceHandler::class.'@removed', 'InvoiceHandler::removed()'],
     ]);
+
+    it('fails once, with a clear message, when the method is not public, instead of leaving a retry to find out', function (): void {
+        expect(fn () => $this->descriptor->resolve(HiddenMethodHandler::class.'@hidden'))
+            ->toThrow(UnresolvableHandler::class, 'HiddenMethodHandler::hidden()\' is not public');
+    });
 
     it('rejects a malformed descriptor', function (string $descriptor): void {
         expect(fn () => $this->descriptor->resolve($descriptor))->toThrow(UnresolvableHandler::class, 'not a valid handler descriptor');
