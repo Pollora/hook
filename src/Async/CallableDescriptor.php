@@ -130,7 +130,7 @@ final readonly class CallableDescriptor
         }
 
         if ((new \ReflectionMethod($className, $method))->isStatic()) {
-            return [$className, $method];
+            return $this->callable([$className, $method], $className, $method);
         }
 
         try {
@@ -141,7 +141,24 @@ final readonly class CallableDescriptor
             throw UnresolvableHandler::notInstantiable($className, $throwable);
         }
 
-        return [$instance, $method];
+        return $this->callable([$instance, $method], $className, $method);
+    }
+
+    /**
+     * A method that exists but that nothing outside the class can call is no handler: failing here is final,
+     * where letting the call fail would send the execution through every retry for nothing.
+     *
+     * @param  array{0: class-string|object, 1: string}  $handler
+     *
+     * @throws UnresolvableHandler When the method cannot be called from here
+     */
+    private function callable(array $handler, string $className, string $method): callable
+    {
+        if (! is_callable($handler)) {
+            throw UnresolvableHandler::notPublicMethod($className, $method);
+        }
+
+        return $handler;
     }
 
     private function describeClosure(\Closure $closure): string
