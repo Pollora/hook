@@ -22,16 +22,27 @@ final class TrackingHook extends AbstractHook
         return $value;
     }
 
+    /**
+     * @param  callable|array<array-key, mixed>  $callback
+     */
     public function detect(callable|array $callback): int
     {
         return $this->detectArguments($callback);
     }
 
+    /**
+     * @param  callable|string|array<array-key, mixed>  $current
+     * @param  callable|string|array<array-key, mixed>  $replacement
+     * @param  callable|string|array<array-key, mixed>|null  $handler
+     */
     public function replace(string $hook, int $priority, callable|string|array $current, callable|string|array $replacement, int $args, callable|string|array|null $handler): void
     {
         $this->replaceTrackedCallback($hook, $priority, $current, $replacement, $args, $handler);
     }
 
+    /**
+     * @param  callable|string|array<array-key, mixed>  $callback
+     */
     protected function removeHookEvent(string $hook, callable|string|array $callback, int $priority): void
     {
         $this->removed[] = ['hook' => $hook, 'callback' => $callback, 'priority' => $priority];
@@ -67,7 +78,7 @@ describe('Removing tracked callbacks', function (): void {
 
         $hook->remove('init', 'first_fn');
 
-        $callbacks = $hook->callbacks('init');
+        $callbacks = $hook->callbacks('init') ?? [];
         expect(array_keys($callbacks))->toBe([0, 1])
             ->and($callbacks[0]['callback'])->toBe('second_fn')
             ->and($callbacks[1]['callback'])->toBe('third_fn');

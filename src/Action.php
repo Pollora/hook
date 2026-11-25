@@ -20,6 +20,9 @@ use Pollora\Hook\Adapter\Out\WordPress\Action as WordPressAction;
  *     Action::remove('init', $callback);
  *
  * @see WordPressAction The underlying WordPress adapter.
+ *
+ * @phpstan-import-type HookCallback from \Pollora\Hook\Domain\Contract\HookInterface
+ * @phpstan-import-type HookRegistration from \Pollora\Hook\Domain\Contract\HookInterface
  */
 class Action
 {
@@ -28,8 +31,8 @@ class Action
     /**
      * Add an action hook.
      *
-     * @param  string|array  $hooks  Hook name(s).
-     * @param  callable|string|array  $callback  Callback.
+     * @param  string|list<string>  $hooks  Hook name(s).
+     * @param  HookCallback  $callback  Callback.
      * @param  int  $priority  Priority (default 10).
      * @param  int|null  $acceptedArgs  Argument count (auto-detected if null).
      * @return WordPressAction The adapter, to chain calls such as async()
@@ -57,7 +60,7 @@ class Action
      * Remove an action hook.
      *
      * @param  string  $hook  Hook name.
-     * @param  callable|string|array|null  $callback  Callback to remove.
+     * @param  HookCallback|null  $callback  Callback to remove.
      * @param  int  $priority  Priority (default 10).
      */
     public static function remove(string $hook, callable|string|array|null $callback = null, int $priority = 10): bool
@@ -79,7 +82,7 @@ class Action
      * Get registered callbacks for an action hook.
      *
      * @param  string  $hook  Hook name.
-     * @return array|null Callbacks or null.
+     * @return list<HookRegistration>|null Callbacks or null.
      */
     public static function callbacks(string $hook): ?array
     {

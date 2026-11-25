@@ -40,6 +40,9 @@ afterEach(function (): void {
     Async::flush();
 });
 
+/**
+ * @return array<string, mixed>
+ */
 function uniqueLocks(): array
 {
     return array_filter($GLOBALS['wp_options'], fn (string $name): bool => str_starts_with($name, UniqueLock::OPTION_PREFIX), ARRAY_FILTER_USE_KEY);

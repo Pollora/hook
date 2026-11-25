@@ -65,6 +65,9 @@ function pendingActions(): array
     return $actions;
 }
 
+/**
+ * @return list<array<string, mixed>>
+ */
 function fixtureRunsOf(string $key): array
 {
     return array_values(array_filter(get_option(PolloraHookFixture::RUNS, []), fn (array $run): bool => $run['key'] === $key));

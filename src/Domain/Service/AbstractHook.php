@@ -17,6 +17,9 @@ use Pollora\Hook\Domain\Exceptions\HookMethodNotFoundException;
  * with dependency resolution and argument detection, but does NOT depend on Laravel or WordPress.
  *
  * This class is a POPO and does not depend on any framework collections or helpers.
+ *
+ * @phpstan-import-type HookCallback from \Pollora\Hook\Domain\Contract\HookInterface
+ * @phpstan-import-type HookRegistration from \Pollora\Hook\Domain\Contract\HookInterface
  */
 abstract class AbstractHook implements HookInterface
 {
@@ -31,6 +34,8 @@ abstract class AbstractHook implements HookInterface
      *    ],
      *    ...
      * ]
+     *
+     * @var array<string, list<HookRegistration>>
      */
     protected array $hooks = [];
 
@@ -41,6 +46,8 @@ abstract class AbstractHook implements HookInterface
      * [
      *    'cacheKey' => numberOfParameters
      * ]
+     *
+     * @var array<string, int>
      */
     protected static array $reflectionCache = [];
 
@@ -55,7 +62,7 @@ abstract class AbstractHook implements HookInterface
     /**
      * Registrations made by the last add() call, one per hook.
      *
-     * @var list<array{hook: string, callback: callable|string|array, priority: int, args: int}>
+     * @var list<array{hook: string, callback: HookCallback, priority: int, args: int}>
      */
     protected array $lastRegistrations = [];
 
@@ -85,8 +92,8 @@ abstract class AbstractHook implements HookInterface
     /**
      * Add one or multiple hooks with a callback.
      *
-     * @param  string|array  $hooks  Hook name or array of hook names
-     * @param  callable|string|array  $callback  Function, closure, class name, or class@method
+     * @param  string|list<string>  $hooks  Hook name or array of hook names
+     * @param  HookCallback  $callback  Function, closure, class name, or class@method
      * @param  int  $priority  Optional. Priority of the hook (default: 10)
      * @param  int|null  $acceptedArgs  Optional. Number of arguments the callback accepts (default: auto-detected)
      * @return static The same instance, to chain calls such as async()
@@ -115,7 +122,7 @@ abstract class AbstractHook implements HookInterface
      * Remove a registered hook.
      *
      * @param  string  $hook  The hook name to remove
-     * @param  callable|string|array|null  $callback  Optional. Specific callback to remove
+     * @param  HookCallback|null  $callback  Optional. Specific callback to remove
      * @param  int  $priority  Optional. Priority of the hook to remove. Default is 10.
      * @return self|false The Hook instance or false if the hook doesn't exist
      */
@@ -169,7 +176,7 @@ abstract class AbstractHook implements HookInterface
      * Check if a hook exists.
      *
      * @param  string  $hook  The hook name to check
-     * @param  callable|string|array|null  $callback  Optional. Specific callback to check
+     * @param  HookCallback|null  $callback  Optional. Specific callback to check
      * @param  int|null  $priority  Optional. Specific priority to check
      * @return bool True if the hook exists, false otherwise
      */
@@ -217,7 +224,7 @@ abstract class AbstractHook implements HookInterface
      * Get the registered callbacks for a hook.
      *
      * @param  string  $hook  The hook name.
-     * @return array|null Returns an array of callbacks or null if the hook doesn't exist
+     * @return list<HookRegistration>|null Returns an array of callbacks or null if the hook doesn't exist
      */
     public function callbacks(string $hook): ?array
     {
@@ -235,7 +242,7 @@ abstract class AbstractHook implements HookInterface
      * who registered them: a profiler reads this to mark the ones Pollora put
      * there, and the class and method they resolved to.
      *
-     * @return array<string, list<array{hook: string, callback: callable|string|array, priority: int, args: int, handler?: callable|string|array}>>
+     * @return array<string, list<HookRegistration>>
      */
     public function all(): array
     {
@@ -246,9 +253,9 @@ abstract class AbstractHook implements HookInterface
      * Resolve the callback for the hook.
      *
      * @param  string  $hook  The hook name
-     * @param  callable|string|array  $callback  Function, closure, class name, or class@method
+     * @param  HookCallback  $callback  Function, closure, class name, or class@method
      * @param  int|null  $acceptedArgs  Optional. Number of arguments (if null, it will be auto-detected)
-     * @return array Resolved callback and argument count
+     * @return array{callable: HookCallback, args: int} Resolved callback and argument count
      *
      * @throws \InvalidArgumentException|\RuntimeException
      */
@@ -289,7 +296,7 @@ abstract class AbstractHook implements HookInterface
      * @param  string  $hook  The hook name
      * @param  string  $className  The class name
      * @param  int|null  $acceptedArgs  Optional. Number of arguments (auto-detected if null)
-     * @return array Resolved class method callback and argument count
+     * @return array{callable: array{object, string}, args: int} Resolved class method callback and argument count
      *
      * @throws CallbackResolutionFailedException When the class cannot be built or has no method named after the hook
      */
@@ -322,7 +329,7 @@ abstract class AbstractHook implements HookInterface
      * @param  class-string  $className  The class name
      * @param  string  $method  The instance method to call
      * @param  int|null  $acceptedArgs  Optional. Number of arguments (auto-detected if null)
-     * @return array Resolved class method callback and argument count
+     * @return array{callable: array{object, string}, args: int} Resolved class method callback and argument count
      *
      * @throws CallbackResolutionFailedException When the class cannot be built
      */
@@ -356,7 +363,7 @@ abstract class AbstractHook implements HookInterface
      * Detect the number of arguments a callable accepts using reflection.
      * Results are cached for improved performance on repeated calls.
      *
-     * @param  callable|array  $callback  The callable function/method
+     * @param  callable|array<array-key, mixed>  $callback  The callable function/method
      * @return int Number of accepted arguments
      *
      * @throws CallbackAnalysisFailedException When reflection cannot read the callable
@@ -385,7 +392,7 @@ abstract class AbstractHook implements HookInterface
      * Add a single hook event.
      *
      * @param  string  $hook  The hook name
-     * @param  callable|string|array  $callback  The callback (may not be callable yet for deferred resolution)
+     * @param  HookCallback  $callback  The callback (may not be callable yet for deferred resolution)
      * @param  int  $priority  The priority of the hook
      * @param  int  $acceptedArgs  The number of arguments accepted by the callback
      */
@@ -411,11 +418,11 @@ abstract class AbstractHook implements HookInterface
      *
      * @param  string  $hook  The hook name
      * @param  int  $priority  The priority of the registration
-     * @param  callable|string|array  $current  The callback tracked today
-     * @param  callable|string|array  $replacement  The callback to track instead
+     * @param  HookCallback  $current  The callback tracked today
+     * @param  HookCallback  $replacement  The callback to track instead
      * @param  int  $acceptedArgs  The argument count of the replacement
-     * @param  callable|string|array|null  $handler  The handler the replacement stands for, so remove()
-     *                                               and exists() still find it by its own callback; null for none
+     * @param  HookCallback|null  $handler  The handler the replacement stands for, so remove()
+     *                                      and exists() still find it by its own callback; null for none
      */
     protected function replaceTrackedCallback(string $hook, int $priority, callable|string|array $current, callable|string|array $replacement, int $acceptedArgs, callable|string|array|null $handler): void
     {
@@ -443,7 +450,7 @@ abstract class AbstractHook implements HookInterface
      * (e.g., WordPress remove_action/remove_filter).
      *
      * @param  string  $hook  The hook name
-     * @param  callable|string|array  $callback  The callback to remove
+     * @param  HookCallback  $callback  The callback to remove
      * @param  int  $priority  The priority of the hook
      */
     protected function removeHookEvent(string $hook, callable|string|array $callback, int $priority): void
@@ -454,7 +461,7 @@ abstract class AbstractHook implements HookInterface
     /**
      * Read the number of parameters of a callable with reflection.
      *
-     * @param  callable|array  $callback  The callable function/method
+     * @param  callable|array<array-key, mixed>  $callback  The callable function/method
      *
      * @throws CallbackAnalysisFailedException When reflection cannot read the callable
      */
@@ -485,8 +492,8 @@ abstract class AbstractHook implements HookInterface
      * Improved callback comparison for the remove method
      * that properly handles class-based callbacks.
      *
-     * @param  callable|string|array  $registeredCallback  The registered callback.
-     * @param  callable|string|array  $requestedCallback  The callback requested for removal.
+     * @param  HookCallback  $registeredCallback  The registered callback.
+     * @param  HookCallback  $requestedCallback  The callback requested for removal.
      * @return bool True if callbacks match, false otherwise.
      */
     private function compareCallbacks(callable|string|array $registeredCallback, callable|string|array $requestedCallback): bool
@@ -543,6 +550,8 @@ abstract class AbstractHook implements HookInterface
      *
      * Static methods and classes not loaded yet are left out: the former are
      * callable as they are, the latter keep their deferred resolution.
+     *
+     * @param  HookCallback  $callback  The callback to test
      */
     private function isInstanceMethodReference(callable|string|array $callback): bool
     {
@@ -568,8 +577,9 @@ abstract class AbstractHook implements HookInterface
      * is returned as is.
      *
      * @param  string  $hook  The hook name
-     * @param  callable|string|array  $callback  The requested callback
+     * @param  HookCallback  $callback  The requested callback
      * @param  int|null  $priority  Optional. Priority the registered callback must have
+     * @return HookCallback
      */
     private function registeredCallbackFor(string $hook, callable|string|array $callback, ?int $priority = null): callable|string|array
     {
@@ -607,7 +617,7 @@ abstract class AbstractHook implements HookInterface
     /**
      * Generate a unique cache key for a callback.
      *
-     * @param  callable|array  $callback  The callback to generate a key for
+     * @param  callable|array<array-key, mixed>  $callback  The callback to generate a key for
      * @return string A unique identifier for the callback
      */
     private function getCacheKeyForCallback(callable|array $callback): string

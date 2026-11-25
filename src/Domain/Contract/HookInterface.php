@@ -9,14 +9,17 @@ namespace Pollora\Hook\Domain\Contract;
  *
  * Defines the common contract for both action and filter hooks,
  * including registration, removal, existence check, and callback listing.
+ *
+ * @phpstan-type HookCallback callable|string|array<array-key, mixed>
+ * @phpstan-type HookRegistration array{hook: string, callback: HookCallback, priority: int, args: int, handler?: HookCallback}
  */
 interface HookInterface
 {
     /**
      * Add a hook callback.
      *
-     * @param  string|array  $hooks  Hook name or array of hook names.
-     * @param  callable|string|array  $callback  The callback function, class name, or [class, method] pair.
+     * @param  string|list<string>  $hooks  Hook name or array of hook names.
+     * @param  HookCallback  $callback  The callback function, class name, or [class, method] pair.
      * @param  int  $priority  Optional priority (default 10).
      * @param  int|null  $acceptedArgs  Optional argument count (auto-detected if null).
      */
@@ -26,7 +29,7 @@ interface HookInterface
      * Remove a hook callback.
      *
      * @param  string  $hook  Hook name.
-     * @param  callable|string|array|null  $callback  Optional callback to remove (removes first if null).
+     * @param  HookCallback|null  $callback  Optional callback to remove (removes first if null).
      * @param  int  $priority  Optional priority (default 10).
      */
     public function remove(string $hook, callable|string|array|null $callback = null, int $priority = 10): self|false;
@@ -42,7 +45,7 @@ interface HookInterface
      * Get the registered callbacks for a hook.
      *
      * @param  string  $hook  Hook name.
-     * @return array|null Callbacks array or null if hook doesn't exist.
+     * @return list<HookRegistration>|null Callbacks array or null if hook doesn't exist.
      */
     public function callbacks(string $hook): ?array;
 }

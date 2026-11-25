@@ -119,8 +119,10 @@ describe('Dates', function (): void {
     it('rebuilds an immutable date for a class that is not a date', function (string $class): void {
         $encoded = [['@type' => 'date', 'class' => $class, 'value' => '2026-10-07T14:30:15.000000+00:00', 'timezone' => 'UTC']];
 
-        expect($this->normalizer->denormalize($encoded)[0])->toBeInstanceOf(DateTimeImmutable::class)
-            ->and($this->normalizer->denormalize($encoded)[0]::class)->toBe(DateTimeImmutable::class);
+        $denormalized = $this->normalizer->denormalize($encoded)[0];
+
+        expect($denormalized)->toBeInstanceOf(DateTimeImmutable::class)
+            ->and(get_debug_type($denormalized))->toBe(DateTimeImmutable::class);
     })->with(['stdClass', 'Missing\\DateClass', 'ArrayObject']);
 
     it('reads a class that is not a string as no date class', function (): void {

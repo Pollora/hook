@@ -79,6 +79,9 @@ it('rebuilds dates with their class and timezone', function (): void {
 it('carries a JsonSerializable object as its array', function (): void {
     $money = new class implements JsonSerializable
     {
+        /**
+         * @return array{amount: int, currency: string}
+         */
         public function jsonSerialize(): array
         {
             return ['amount' => 1999, 'currency' => 'EUR'];

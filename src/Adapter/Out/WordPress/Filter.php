@@ -12,6 +12,8 @@ use Pollora\Hook\Domain\Service\AbstractHook;
  *
  * Implements the Filter contract by delegating to WordPress
  * `add_filter()`, `remove_filter()`, and `apply_filters()` functions.
+ *
+ * @phpstan-import-type HookCallback from \Pollora\Hook\Domain\Contract\HookInterface
  */
 class Filter extends AbstractHook implements FilterContract
 {

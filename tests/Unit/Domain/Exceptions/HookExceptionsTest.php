@@ -22,6 +22,9 @@ class ExceptionProbeHook extends AbstractHook
         return $value;
     }
 
+    /**
+     * @param  callable|array<array-key, mixed>  $callback
+     */
     public function probeArguments(callable|array $callback): int
     {
         return $this->detectArguments($callback);

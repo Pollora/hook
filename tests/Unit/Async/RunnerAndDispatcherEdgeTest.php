@@ -67,6 +67,10 @@ afterEach(function (): void {
     Async::flush();
 });
 
+/**
+ * @param  list<mixed>  $arguments
+ * @param  array<string, mixed>  $overrides
+ */
 function edgeRunnerPayload(string $handler, array $arguments = [1], array $overrides = []): AsyncPayload
 {
     return new AsyncPayload(...array_merge([
