@@ -4,7 +4,7 @@ All notable changes to `pollora/hook` are documented in this file.
 
 ## [Unreleased]
 
-## [2.1.0] - 2026-11-25
+## [2.0.2] - 2026-11-25
 
 ### Fixed
 
