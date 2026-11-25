@@ -14,7 +14,7 @@ beforeEach(function (): void {
     $GLOBALS['wp_objects'] = [];
     $this->normalizer = new ArgumentNormalizer;
     $this->roundTrip = fn (array $arguments, bool $keepMissing = false): array => $this->normalizer->denormalize(
-        json_decode(json_encode($this->normalizer->normalize($arguments), JSON_PRESERVE_ZERO_FRACTION), true),
+        json_decode(json_encode($this->normalizer->normalize($arguments), JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR), true),
         $keepMissing,
     );
 });
@@ -121,7 +121,7 @@ it('uses a registered object reference before the built-in ones', function (): v
 
         public function reference(object $object): array
         {
-            return ['key' => $object['key']];
+            return ['key' => $object instanceof ArrayObject ? $object['key'] : null];
         }
 
         public function resolve(array $reference): object

@@ -63,6 +63,7 @@ final class Recovery
      */
     public static function recover(): int
     {
+        /** @var \wpdb|null $wpdb The database, null before WordPress has loaded it */
         global $wpdb;
 
         if (! is_object($wpdb)) {
@@ -70,7 +71,7 @@ final class Recovery
         }
 
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT %d",
+            "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT %d", // @phpstan-ignore argument.type (only the table name, which no placeholder can stand for before WordPress 6.2's %i, is interpolated; every value goes through a placeholder)
             $wpdb->esc_like(PayloadStore::OPTION_PREFIX).'%',
             self::BATCH,
         ), 'ARRAY_A');

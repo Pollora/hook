@@ -107,6 +107,7 @@ describe('P0 — Permissive callback resolution', function (): void {
         // Create a class that has a method matching the hook name pattern
         $className = 'TestHookClass_'.uniqid();
         eval(sprintf('class %s { public function myHook($a) { return $a; } }', $className));
+        assert(class_exists($className));
 
         $this->hook->add('my_hook', $className);
 
@@ -141,6 +142,7 @@ describe('P1 — CallbackResolverInterface support', function (): void {
     it('falls back to direct instantiation when no resolver is set', function (): void {
         $className = 'DirectInstantiationTest_'.uniqid();
         eval(sprintf('class %s { public function myHook() {} }', $className));
+        assert(class_exists($className));
 
         // No resolver set
         $this->hook->add('my_hook', $className);

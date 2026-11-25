@@ -337,7 +337,7 @@ function wp_stub_wpdb(): object
     {
         public string $options = 'wp_options';
 
-        /** @var list<array{query: string, args: list<mixed>}> Every query prepared */
+        /** @var list<array{query: string, args: array<int|string, mixed>}> Every query prepared */
         public array $queries = [];
 
         /** @var list<string> The output format asked of each get_results() call */
@@ -349,7 +349,7 @@ function wp_stub_wpdb(): object
         }
 
         /**
-         * @return array{query: string, args: list<mixed>}
+         * @return array{query: string, args: array<int|string, mixed>}
          */
         public function prepare(string $query, mixed ...$args): array
         {
@@ -359,7 +359,7 @@ function wp_stub_wpdb(): object
         }
 
         /**
-         * @param  array{query: string, args: list<mixed>}  $prepared
+         * @param  array{query: string, args: array<int|string, mixed>}  $prepared
          * @return list<array{option_name: string, option_value: mixed}>
          */
         public function get_results(array $prepared, string $output): array
@@ -380,7 +380,7 @@ function wp_stub_wpdb(): object
         /**
          * Answers the expired-lock query: prefix, time, limit.
          *
-         * @param  array{query: string, args: list<mixed>}  $prepared
+         * @param  array{query: string, args: array<int|string, mixed>}  $prepared
          * @return list<string>
          */
         public function get_col(array $prepared): array

@@ -23,7 +23,7 @@ final readonly class AsyncDispatcher
     ) {}
 
     /**
-     * @param  array<int, mixed>  $arguments  Hook arguments, as WordPress passed them
+     * @param  array<int|string, mixed>  $arguments  Hook arguments, as WordPress passed them (named when a caller named them)
      */
     public function dispatch(QueuedHandler $handler, array $arguments): void
     {
@@ -117,8 +117,8 @@ final readonly class AsyncDispatcher
     /**
      * Run the capture callback of the registration, or the handler class's capture() method.
      *
-     * @param  array<int, mixed>  $arguments
-     * @return array<string, mixed>
+     * @param  array<int|string, mixed>  $arguments
+     * @return array<int|string, mixed>
      */
     private function capture(QueuedHandler $handler, array $arguments): array
     {

@@ -174,5 +174,5 @@ it('reads a payload without a unique key', function (): void {
     ))->toJson(), true);
     unset($data['uniqueKey']);
 
-    expect(AsyncPayload::fromJson(json_encode($data))->uniqueKey)->toBeNull();
+    expect(AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR))->uniqueKey)->toBeNull();
 });

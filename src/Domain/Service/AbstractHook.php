@@ -294,7 +294,7 @@ abstract class AbstractHook implements HookInterface
      * Instantiate a class and resolve its method dynamically.
      *
      * @param  string  $hook  The hook name
-     * @param  string  $className  The class name
+     * @param  class-string  $className  The class name
      * @param  int|null  $acceptedArgs  Optional. Number of arguments (auto-detected if null)
      * @return array{callable: array{object, string}, args: int} Resolved class method callback and argument count
      *
@@ -426,18 +426,23 @@ abstract class AbstractHook implements HookInterface
      */
     protected function replaceTrackedCallback(string $hook, int $priority, callable|string|array $current, callable|string|array $replacement, int $acceptedArgs, callable|string|array|null $handler): void
     {
-        foreach ($this->hooks[$hook] ?? [] as $index => $item) {
+        $registrations = $this->hooks[$hook] ?? [];
+
+        foreach ($registrations as $index => $item) {
             if ($item['priority'] !== $priority || $item['callback'] !== $current) {
                 continue;
             }
 
-            $this->hooks[$hook][$index]['callback'] = $replacement;
-            $this->hooks[$hook][$index]['args'] = $acceptedArgs;
-            unset($this->hooks[$hook][$index]['handler']);
+            $item['callback'] = $replacement;
+            $item['args'] = $acceptedArgs;
+            unset($item['handler']);
 
             if ($handler !== null) {
-                $this->hooks[$hook][$index]['handler'] = $handler;
+                $item['handler'] = $handler;
             }
+
+            $registrations[$index] = $item;
+            $this->hooks[$hook] = $registrations;
 
             return;
         }
@@ -479,7 +484,8 @@ abstract class AbstractHook implements HookInterface
                 // An invokable object: its __invoke() method is what WordPress calls
                 $reflection = new \ReflectionMethod($callback, '__invoke');
             } else {
-                $reflection = new \ReflectionFunction($callback);
+                // A closure or a function name
+                $reflection = new \ReflectionFunction(\Closure::fromCallable($callback));
             }
 
             return $reflection->getNumberOfParameters();

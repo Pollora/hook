@@ -55,7 +55,7 @@ describe('Reading the origin', function (): void {
             $data['origin'][$key] = $value;
         }
 
-        expect(fn () => AsyncPayload::fromJson(json_encode($data)))
+        expect(fn () => AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR)))
             ->toThrow(InvalidPayload::class, "'origin.{$key}'");
     })->with([
         'no userId' => ['userId', null, true],
@@ -72,7 +72,7 @@ describe('Reading the origin', function (): void {
         $data = json_decode(edgePayload()->toJson(), true);
         unset($data['origin']['blogId']);
 
-        expect(fn () => AsyncPayload::fromJson(json_encode($data)))
+        expect(fn () => AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR)))
             ->toThrow(InvalidPayload::class, "The asynchronous payload field 'origin.blogId' is missing or invalid.");
     });
 });
@@ -119,13 +119,13 @@ describe('Backoff validation', function (): void {
         $data = json_decode(edgePayload()->toJson(), true);
         $data['backoff'] = [0, 5];
 
-        expect(AsyncPayload::fromJson(json_encode($data))->backoff)->toBe([0, 5]);
+        expect(AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR))->backoff)->toBe([0, 5]);
     });
 
     it('refuses a delay of minus one', function (): void {
         $data = json_decode(edgePayload()->toJson(), true);
         $data['backoff'] = [-1];
 
-        expect(fn () => AsyncPayload::fromJson(json_encode($data)))->toThrow(InvalidPayload::class, "'backoff'");
+        expect(fn () => AsyncPayload::fromJson(json_encode($data, JSON_THROW_ON_ERROR)))->toThrow(InvalidPayload::class, "'backoff'");
     });
 });

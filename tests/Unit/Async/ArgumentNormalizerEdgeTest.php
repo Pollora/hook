@@ -23,7 +23,7 @@ beforeEach(function (): void {
     $GLOBALS['wp_objects'] = [];
     $this->normalizer = new ArgumentNormalizer;
     $this->roundTrip = fn (array $arguments, bool $keepMissing = false): array => $this->normalizer->denormalize(
-        json_decode(json_encode($this->normalizer->normalize($arguments)), true),
+        json_decode(json_encode($this->normalizer->normalize($arguments), JSON_THROW_ON_ERROR), true),
         $keepMissing,
     );
 });

@@ -152,7 +152,9 @@ describe('resolve()', function (): void {
 
         $callable = (new CallableDescriptor($resolver))->resolve(InvoiceHandler::class.'@send');
 
-        expect($callable[0]->source)->toBe('container');
+        $target = is_array($callable) ? $callable[0] : null;
+
+        expect($target instanceof InvoiceHandler ? $target->source : null)->toBe('container');
     });
 
     it('resolves a static method without instantiating', function (): void {

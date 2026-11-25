@@ -18,7 +18,7 @@ final readonly class AsyncContext
      * @param  string  $hook  Hook that fired
      * @param  \DateTimeImmutable  $dispatchedAt  Trigger date
      * @param  int  $attempt  Attempt number, from 1
-     * @param  array<string, mixed>  $captured  Values recorded at trigger time
+     * @param  array<int|string, mixed>  $captured  Values recorded at trigger time
      */
     public function __construct(
         public int $userId,
