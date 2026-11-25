@@ -16,6 +16,8 @@ use Pollora\Hook\Async\Exceptions\MissingReferencedObject;
  * handler does not stop the others a WP-Cron run holds.
  *
  * @internal
+ *
+ * @phpstan-import-type HookCallback from \Pollora\Hook\Domain\Contract\HookInterface
  */
 final class AsyncRunner
 {
@@ -69,6 +71,7 @@ final class AsyncRunner
     /**
      * Call a handler with the hook arguments and, when it asks for it, the context.
      *
+     * @param  HookCallback  $callback
      * @param  array<int|string, mixed>  $arguments
      */
     public function call(callable|string|array $callback, array $arguments, AsyncContext $context): void

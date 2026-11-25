@@ -23,6 +23,8 @@ use Pollora\Hook\Domain\Contract\CallbackResolverInterface;
  * HMAC (Async::closureKey()); the signature is checked before anything is
  * unserialized. A closure made from a named function or method (strlen(...),
  * $object->method(...)) is described by that name instead.
+ *
+ * @phpstan-import-type HookCallback from \Pollora\Hook\Domain\Contract\HookInterface
  */
 final readonly class CallableDescriptor
 {
@@ -37,7 +39,7 @@ final readonly class CallableDescriptor
     /**
      * Describe a handler as a string.
      *
-     * @param  callable|string|array  $callback  A function name, a [class or object, method] pair, a 'Class::method' string or an invokable object
+     * @param  HookCallback  $callback  A function name, a [class or object, method] pair, a 'Class::method' string or an invokable object
      *
      * @throws UnresolvableHandler When the handler has no name to be resolved by later
      */
@@ -71,6 +73,7 @@ final readonly class CallableDescriptor
      * is pluggable. Its serialization is checked at once; it is signed when its
      * hook first fires.
      *
+     * @param  HookCallback  $callback  The registered callback
      * @return string|null The descriptor, or null for a closure to describe later
      *
      * @throws UnresolvableHandler When the handler can never be described

@@ -19,6 +19,9 @@ use Pollora\Hook\Domain\Service\AbstractHook;
  *
  * Implements the Action contract by delegating to WordPress
  * `add_action()`, `remove_action()`, and `do_action()` functions.
+ *
+ * @phpstan-import-type HookCallback from \Pollora\Hook\Domain\Contract\HookInterface
+ * @phpstan-import-type HookRegistration from \Pollora\Hook\Domain\Contract\HookInterface
  */
 class Action extends AbstractHook implements ActionContract
 {
@@ -121,6 +124,7 @@ class Action extends AbstractHook implements ActionContract
     /**
      * The public capture() method of a handler class, used when capture() is not called.
      *
+     * @param  HookCallback  $callback  The registered callback
      * @return array{0: object, 1: 'capture'}|null
      */
     private function defaultCapture(callable|string|array $callback): ?array
@@ -146,6 +150,10 @@ class Action extends AbstractHook implements ActionContract
 
     /**
      * Replace a callback, in WordPress and in the tracked registrations.
+     *
+     * @param  HookCallback  $current  The callback registered today
+     * @param  HookCallback  $replacement  The callback to register instead
+     * @param  HookCallback|null  $handler  The handler the replacement stands for, null for none
      */
     private function swapCallback(string $hook, int $priority, callable|string|array $current, callable|string|array $replacement, int $acceptedArgs, callable|string|array|null $handler): void
     {

@@ -12,13 +12,15 @@ namespace Pollora\Hook\Async;
  * they sit; the other parameters receive the hook arguments, in order.
  *
  * @internal
+ *
+ * @phpstan-import-type HookCallback from \Pollora\Hook\Domain\Contract\HookInterface
  */
 final class HandlerArguments
 {
     /**
      * How many hook arguments a handler takes, its AsyncContext and injected parameters left out.
      *
-     * @param  callable|string|array  $callback  The registered callback
+     * @param  HookCallback  $callback  The registered callback
      * @param  int  $registeredArgs  The argument count it was registered with
      */
     public static function hookArgumentCount(callable|string|array $callback, int $registeredArgs): int
@@ -95,6 +97,9 @@ final class HandlerArguments
         return $type instanceof \ReflectionNamedType && $type->getName() === AsyncContext::class;
     }
 
+    /**
+     * @param  HookCallback  $callback
+     */
     private static function reflect(callable|string|array $callback): ?\ReflectionFunctionAbstract
     {
         try {
