@@ -56,12 +56,14 @@ jobs:
 
       - name: Run PHPStan
         run: composer phpstan:ci
+  # The latest WordPress is covered by the "WordPress integration" job of the harness (harness.yml, same
+  # `test:integration` script, with Action Scheduler). This job only keeps the early warning against the nightly build.
   wordpress:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        wordpress: ['latest', 'nightly']
+        wordpress: ['nightly']
 
     name: WordPress ${{ matrix.wordpress }}
 
